@@ -7,7 +7,7 @@ on:
   workflow_dispatch:
     inputs:
       tag:
-        description: 'Existing release tag (for example, metrics-v0.56.8)'
+        description: 'Existing release tag (for example, metrics-v0.56.8-r1)'
         required: true
         type: string
 
@@ -32,7 +32,8 @@ jobs:
       contents: read
     outputs:
       release_tag: ${{ steps.release.outputs.tag }}
-      release_version: ${{ steps.release.outputs.version }}
+      base_version: ${{ steps.release.outputs.base_version }}
+      release_label: ${{ steps.release.outputs.release_label }}
 
     steps:
       - name: Resolve release ref
@@ -51,14 +52,18 @@ jobs:
           }
           $match = [regex]::Match(
             $tag,
-            '^metrics-v((?:0|[1-9]\d*)\.(?:0|[1-9]\d*)\.(?:0|[1-9]\d*))$'
+            '^metrics-v(?<base>(?:0|[1-9]\d*)\.(?:0|[1-9]\d*)\.(?:0|[1-9]\d*))(?:-r(?<revision>[1-9]\d*))?$'
           )
           if (-not $match.Success) {
-            throw "Release tag must use metrics-vX.Y.Z; received '$tag'."
+            throw "Release tag must use metrics-vX.Y.Z or metrics-vX.Y.Z-rN; received '$tag'."
           }
 
+          $baseVersion = $match.Groups['base'].Value
+          $releaseLabel = $tag.Substring('metrics-v'.Length)
           "tag=$tag" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
-          "version=$($match.Groups[1].Value)" |
+          "base_version=$baseVersion" |
+            Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
+          "release_label=$releaseLabel" |
             Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
 
       - name: Checkout release tag
@@ -99,7 +104,7 @@ jobs:
       - name: Verify crate version
         shell: pwsh
         env:
-          RELEASE_VERSION: ${{ steps.release.outputs.version }}
+          RELEASE_VERSION: ${{ steps.release.outputs.base_version }}
         run: |
           $ErrorActionPreference = 'Stop'
           $metadata = cargo metadata `
@@ -125,7 +130,9 @@ jobs:
 
       - name: Test CLI crate
         shell: pwsh
-        run: cargo test --manifest-path rust/Cargo.toml --locked
+        # A PowerShell-based Windows restart test is unstable when the hosted
+        # runner executes the crate's tests concurrently.
+        run: cargo test --manifest-path rust/Cargo.toml --locked -- --test-threads=1
 
       - name: Build release executable
         shell: pwsh
@@ -205,7 +212,7 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           RELEASE_TAG: ${{ needs.build-release.outputs.release_tag }}
-          RELEASE_VERSION: ${{ needs.build-release.outputs.release_version }}
+          RELEASE_LABEL: ${{ needs.build-release.outputs.release_label }}
         run: |
           set -euo pipefail
 
@@ -310,7 +317,7 @@ jobs:
             --repo "$GITHUB_REPOSITORY" \
             --verify-tag \
             --draft \
-            --title "Win-CodexBar Metrics CLI ${RELEASE_VERSION}" \
+            --title "Win-CodexBar Metrics CLI ${RELEASE_LABEL}" \
             --notes-file metrics-release-notes.md
 
           trap cleanup_created_draft EXIT
