@@ -288,16 +288,6 @@ jobs:
             exit_status=$?
             trap - EXIT
 
-            if [[ -z "$created_release_id" ]]; then
-              set +e
-              created_release_id="$(
-                gh api --paginate \
-                  "repos/${GITHUB_REPOSITORY}/releases?per_page=100" \
-                  --jq ".[] | select(.tag_name == \"${RELEASE_TAG}\") | .id"
-              )"
-              set -e
-            fi
-
             if [[ "$created_release_id" =~ ^[0-9]+$ ]]; then
               draft_state="$(
                 gh api "repos/${GITHUB_REPOSITORY}/releases/${created_release_id}" \
@@ -312,32 +302,33 @@ jobs:
                   echo "::warning::Could not delete incomplete draft release ${RELEASE_TAG} (id ${created_release_id})."
                 fi
               fi
-            else
-              echo "::warning::Could not identify the incomplete draft release ${RELEASE_TAG} for cleanup."
+            elif ((exit_status != 0)); then
+              echo "::warning::No exact release ID was captured; skipped draft cleanup for ${RELEASE_TAG}."
             fi
 
             exit "$exit_status"
           }
 
-          gh release create "$RELEASE_TAG" \
-            --repo "$GITHUB_REPOSITORY" \
-            --verify-tag \
-            --draft \
-            --title "Win-CodexBar Metrics CLI ${RELEASE_LABEL}" \
-            --notes-file metrics-release-notes.md
-
+          gh api \
+            "repos/${GITHUB_REPOSITORY}/git/ref/tags/${RELEASE_TAG}" \
+            --silent
           trap cleanup_created_draft EXIT
 
-          draft_release_id="$(
-            gh api --paginate \
-              "repos/${GITHUB_REPOSITORY}/releases?per_page=100" \
-              --jq ".[] | select(.tag_name == \"${RELEASE_TAG}\") | .id"
+          created_release_id="$(
+            gh api --method POST \
+              "repos/${GITHUB_REPOSITORY}/releases" \
+              -f "tag_name=${RELEASE_TAG}" \
+              -f "name=Win-CodexBar Metrics CLI ${RELEASE_LABEL}" \
+              -F body=@metrics-release-notes.md \
+              -F draft=true \
+              -F prerelease=false \
+              --jq '.id'
           )"
-          if [[ -z "$draft_release_id" || "$draft_release_id" == *$'\n'* ]]; then
-            echo "::error::Expected exactly one draft release for tag ${RELEASE_TAG}."
+          if [[ ! "$created_release_id" =~ ^[0-9]+$ ]]; then
+            echo "::error::GitHub did not return the new draft release ID for ${RELEASE_TAG}."
             exit 1
           fi
-          created_release_id="$draft_release_id"
+          draft_release_id="$created_release_id"
 
           draft_state="$(
             gh api "repos/${GITHUB_REPOSITORY}/releases/${draft_release_id}" \
@@ -345,6 +336,27 @@ jobs:
           )"
           if [[ "$draft_state" != true ]]; then
             echo "::error::New release ${RELEASE_TAG} is not a draft."
+            exit 1
+          fi
+
+          visible_release_id=''
+          for attempt in {1..20}; do
+            visible_release_id="$(
+              gh api \
+                "repos/${GITHUB_REPOSITORY}/releases/tags/${RELEASE_TAG}" \
+                --jq '.id' 2>/dev/null || true
+            )"
+            if [[ "$visible_release_id" == "$draft_release_id" ]]; then
+              break
+            fi
+            if [[ -n "$visible_release_id" ]]; then
+              echo "::error::Tag ${RELEASE_TAG} resolved to unexpected release ID ${visible_release_id}."
+              exit 1
+            fi
+            sleep 3
+          done
+          if [[ "$visible_release_id" != "$draft_release_id" ]]; then
+            echo "::error::Draft release ${RELEASE_TAG} did not become visible through the tag endpoint."
             exit 1
           fi
 
