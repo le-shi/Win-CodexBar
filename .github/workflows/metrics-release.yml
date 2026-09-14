@@ -1,0 +1,375 @@
+name: Metrics CLI release
+
+on:
+  push:
+    tags:
+      - 'metrics-v*.*.*'
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Existing release tag (for example, metrics-v0.56.8)'
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: metrics-cli-release-${{ inputs.tag || github.ref_name }}
+  cancel-in-progress: false
+
+env:
+  CARGO_TERM_COLOR: always
+  CARGO_BUILD_TARGET: x86_64-pc-windows-msvc
+
+jobs:
+  build-release:
+    name: Build Windows CLI
+    if: github.repository == 'le-shi/Win-CodexBar'
+    runs-on: windows-latest
+    timeout-minutes: 60
+    permissions:
+      contents: read
+    outputs:
+      release_tag: ${{ steps.release.outputs.tag }}
+      release_version: ${{ steps.release.outputs.version }}
+
+    steps:
+      - name: Resolve release ref
+        id: release
+        shell: pwsh
+        env:
+          DISPATCH_TAG: ${{ inputs.tag }}
+          EVENT_NAME: ${{ github.event_name }}
+          PUSH_TAG: ${{ github.ref_name }}
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $tag = if ($env:EVENT_NAME -eq 'workflow_dispatch') {
+            $env:DISPATCH_TAG
+          } else {
+            $env:PUSH_TAG
+          }
+          $match = [regex]::Match(
+            $tag,
+            '^metrics-v((?:0|[1-9]\d*)\.(?:0|[1-9]\d*)\.(?:0|[1-9]\d*))$'
+          )
+          if (-not $match.Success) {
+            throw "Release tag must use metrics-vX.Y.Z; received '$tag'."
+          }
+
+          "tag=$tag" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
+          "version=$($match.Groups[1].Value)" |
+            Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
+
+      - name: Checkout release tag
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          fetch-depth: 1
+          persist-credentials: false
+          ref: refs/tags/${{ steps.release.outputs.tag }}
+
+      - name: Verify checked-out tag commit
+        shell: pwsh
+        env:
+          RELEASE_TAG: ${{ steps.release.outputs.tag }}
+        run: |
+          $ErrorActionPreference = 'Stop'
+          git show-ref --verify --quiet "refs/tags/$env:RELEASE_TAG"
+          if ($LASTEXITCODE -ne 0) {
+            throw "Checkout did not fetch refs/tags/$env:RELEASE_TAG."
+          }
+
+          $headCommit = (git rev-parse HEAD).Trim()
+          if ($LASTEXITCODE -ne 0) {
+            throw 'Could not resolve the checked-out HEAD commit.'
+          }
+          $tagCommit = (git rev-parse "refs/tags/$env:RELEASE_TAG^{commit}").Trim()
+          if ($LASTEXITCODE -ne 0) {
+            throw "Could not resolve refs/tags/$env:RELEASE_TAG to a commit."
+          }
+          if ($headCommit -ne $tagCommit) {
+            throw "Checked-out HEAD '$headCommit' does not match tag commit '$tagCommit'."
+          }
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@6bed0761d98439e5a578e2877258200ad565ba87
+        with:
+          targets: x86_64-pc-windows-msvc
+
+      - name: Verify crate version
+        shell: pwsh
+        env:
+          RELEASE_VERSION: ${{ steps.release.outputs.version }}
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $metadata = cargo metadata `
+            --manifest-path rust/Cargo.toml `
+            --format-version 1 `
+            --no-deps | ConvertFrom-Json
+          $crate = $metadata.packages |
+            Where-Object { $_.name -eq 'codexbar' } |
+            Select-Object -First 1
+
+          if (-not $crate) {
+            throw 'Could not find the codexbar crate in Cargo metadata.'
+          }
+          if ($crate.version -ne $env:RELEASE_VERSION) {
+            throw "rust/Cargo.toml version '$($crate.version)' does not match tag version '$env:RELEASE_VERSION'."
+          }
+
+      - name: Cache Cargo
+        uses: Swatinem/rust-cache@f13886b937689c021905a6b90929199931d60db1 # v2.8.1
+        with:
+          workspaces: . -> target
+          key: metrics-cli-windows-x64
+
+      - name: Test CLI crate
+        shell: pwsh
+        run: cargo test --manifest-path rust/Cargo.toml --locked
+
+      - name: Build release executable
+        shell: pwsh
+        run: >-
+          cargo build
+          --manifest-path rust/Cargo.toml
+          --locked
+          --release
+          --bin codexbar
+          --target x86_64-pc-windows-msvc
+
+      - name: Package release assets
+        shell: pwsh
+        env:
+          RELEASE_TAG: ${{ steps.release.outputs.tag }}
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $sourceExe = 'target\x86_64-pc-windows-msvc\release\codexbar.exe'
+          $outputDir = 'dist'
+          $exeName = 'codexbar-cli.exe'
+          $zipName = "CodexBarCLI-$env:RELEASE_TAG-windows-x64.zip"
+          $outputExe = Join-Path $outputDir $exeName
+          $outputZip = Join-Path $outputDir $zipName
+
+          if (-not (Test-Path -LiteralPath $sourceExe -PathType Leaf)) {
+            throw "Missing expected CLI executable: $sourceExe"
+          }
+
+          New-Item -ItemType Directory -Force -Path $outputDir | Out-Null
+          Copy-Item -LiteralPath $sourceExe -Destination $outputExe -Force
+          & $outputExe --version
+          if ($LASTEXITCODE -ne 0) {
+            throw "Packaged CLI version check failed with exit code $LASTEXITCODE."
+          }
+
+          Compress-Archive `
+            -LiteralPath $outputExe `
+            -DestinationPath $outputZip `
+            -CompressionLevel Optimal `
+            -Force
+
+          foreach ($asset in @($outputExe, $outputZip)) {
+            $name = Split-Path $asset -Leaf
+            $hash = (Get-FileHash -LiteralPath $asset -Algorithm SHA256).Hash.ToLowerInvariant()
+            [IO.File]::WriteAllText(
+              "$asset.sha256",
+              "$hash  $name`n",
+              [Text.Encoding]::ASCII
+            )
+          }
+
+      - name: Upload workflow artifact
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: codexbar-metrics-cli-${{ steps.release.outputs.tag }}-windows-x64
+          path: dist/*
+          if-no-files-found: error
+
+  publish-release:
+    name: Publish GitHub release
+    if: github.repository == 'le-shi/Win-CodexBar'
+    needs: build-release
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: write
+
+    steps:
+      - name: Download verified build artifact
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          name: codexbar-metrics-cli-${{ needs.build-release.outputs.release_tag }}-windows-x64
+          path: dist
+
+      - name: Publish without replacing existing assets
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ needs.build-release.outputs.release_tag }}
+          RELEASE_VERSION: ${{ needs.build-release.outputs.release_version }}
+        run: |
+          set -euo pipefail
+
+          assets=(
+            'dist/codexbar-cli.exe'
+            'dist/codexbar-cli.exe.sha256'
+            "dist/CodexBarCLI-${RELEASE_TAG}-windows-x64.zip"
+            "dist/CodexBarCLI-${RELEASE_TAG}-windows-x64.zip.sha256"
+          )
+          for asset in "${assets[@]}"; do
+            [[ -f "$asset" ]] || {
+              echo "::error::Missing release asset: $asset"
+              exit 1
+            }
+          done
+          (
+            cd dist
+            sha256sum --check codexbar-cli.exe.sha256
+            sha256sum --check \
+              "CodexBarCLI-${RELEASE_TAG}-windows-x64.zip.sha256"
+          )
+
+          release_id="$(
+            gh api --paginate \
+              "repos/${GITHUB_REPOSITORY}/releases?per_page=100" \
+              --jq ".[] | select(.tag_name == \"${RELEASE_TAG}\") | .id"
+          )"
+          if [[ "$release_id" == *$'\n'* ]]; then
+            echo "::error::More than one release matched tag ${RELEASE_TAG}."
+            exit 1
+          fi
+
+          if [[ -n "$release_id" ]]; then
+            existing_assets_text="$(
+              gh api --paginate \
+                "repos/${GITHUB_REPOSITORY}/releases/${release_id}/assets?per_page=100" \
+                --jq '.[].name'
+            )"
+            existing_assets=()
+            while IFS= read -r existing_name; do
+              [[ -n "$existing_name" ]] && existing_assets+=("$existing_name")
+            done <<< "$existing_assets_text"
+            for asset in "${assets[@]}"; do
+              asset_name="$(basename "$asset")"
+              for existing_name in "${existing_assets[@]}"; do
+                if [[ "$asset_name" == "$existing_name" ]]; then
+                  echo "::error::Release ${RELEASE_TAG} already contains ${asset_name}; refusing to overwrite it."
+                  exit 1
+                fi
+              done
+            done
+            echo "::error::Release ${RELEASE_TAG} already exists; refusing to modify a possibly partial release."
+            exit 1
+          fi
+
+          cat > metrics-release-notes.md <<'EOF'
+          This standalone CLI release adds Prometheus monitoring support:
+
+          - Enable the opt-in endpoint with `codexbar-cli serve --metrics`.
+          - `/metrics` uses the same Bearer token and Host allowlist as the dashboard endpoints.
+          - Prometheus setup is documented in `docs/CLI.md`.
+          - The importable Grafana dashboard is `docs/grafana/codexbar-dashboard.json`.
+          EOF
+
+          created_release_id=''
+          cleanup_created_draft() {
+            exit_status=$?
+            trap - EXIT
+
+            if [[ -z "$created_release_id" ]]; then
+              set +e
+              created_release_id="$(
+                gh api --paginate \
+                  "repos/${GITHUB_REPOSITORY}/releases?per_page=100" \
+                  --jq ".[] | select(.tag_name == \"${RELEASE_TAG}\") | .id"
+              )"
+              set -e
+            fi
+
+            if [[ "$created_release_id" =~ ^[0-9]+$ ]]; then
+              draft_state="$(
+                gh api "repos/${GITHUB_REPOSITORY}/releases/${created_release_id}" \
+                  --jq '.draft' 2>/dev/null || true
+              )"
+              if [[ "$draft_state" == true ]]; then
+                if gh api --method DELETE \
+                  "repos/${GITHUB_REPOSITORY}/releases/${created_release_id}" \
+                  --silent; then
+                  echo "Deleted incomplete draft release ${RELEASE_TAG}."
+                else
+                  echo "::warning::Could not delete incomplete draft release ${RELEASE_TAG} (id ${created_release_id})."
+                fi
+              fi
+            else
+              echo "::warning::Could not identify the incomplete draft release ${RELEASE_TAG} for cleanup."
+            fi
+
+            exit "$exit_status"
+          }
+
+          gh release create "$RELEASE_TAG" \
+            --repo "$GITHUB_REPOSITORY" \
+            --verify-tag \
+            --draft \
+            --title "Win-CodexBar Metrics CLI ${RELEASE_VERSION}" \
+            --notes-file metrics-release-notes.md
+
+          trap cleanup_created_draft EXIT
+
+          draft_release_id="$(
+            gh api --paginate \
+              "repos/${GITHUB_REPOSITORY}/releases?per_page=100" \
+              --jq ".[] | select(.tag_name == \"${RELEASE_TAG}\") | .id"
+          )"
+          if [[ -z "$draft_release_id" || "$draft_release_id" == *$'\n'* ]]; then
+            echo "::error::Expected exactly one draft release for tag ${RELEASE_TAG}."
+            exit 1
+          fi
+          created_release_id="$draft_release_id"
+
+          draft_state="$(
+            gh api "repos/${GITHUB_REPOSITORY}/releases/${draft_release_id}" \
+              --jq '.draft'
+          )"
+          if [[ "$draft_state" != true ]]; then
+            echo "::error::New release ${RELEASE_TAG} is not a draft."
+            exit 1
+          fi
+
+          gh release upload "$RELEASE_TAG" "${assets[@]}" \
+            --repo "$GITHUB_REPOSITORY"
+
+          draft_assets_text="$(
+            gh api --paginate \
+              "repos/${GITHUB_REPOSITORY}/releases/${draft_release_id}/assets?per_page=100" \
+              --jq '.[].name'
+          )"
+          draft_assets=()
+          while IFS= read -r draft_name; do
+            [[ -n "$draft_name" ]] && draft_assets+=("$draft_name")
+          done <<< "$draft_assets_text"
+          for asset in "${assets[@]}"; do
+            asset_name="$(basename "$asset")"
+            match_count=0
+            for draft_name in "${draft_assets[@]}"; do
+              [[ "$asset_name" == "$draft_name" ]] && ((match_count += 1))
+            done
+            if ((match_count != 1)); then
+              echo "::error::Expected exactly one draft asset named ${asset_name}; found ${match_count}."
+              exit 1
+            fi
+          done
+
+          gh release edit "$RELEASE_TAG" \
+            --repo "$GITHUB_REPOSITORY" \
+            --draft=false \
+            --latest=false
+
+          release_is_draft="$(
+            gh api "repos/${GITHUB_REPOSITORY}/releases/tags/${RELEASE_TAG}" \
+              --jq '.draft'
+          )"
+          if [[ "$release_is_draft" != false ]]; then
+            echo "::error::Release ${RELEASE_TAG} was not published successfully."
+            exit 1
+          fi
+          trap - EXIT

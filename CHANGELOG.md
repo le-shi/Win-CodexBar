@@ -1,5 +1,13 @@
 # Changelog
 
+## [Windows] metrics-v0.56.8 - 2026-09-14
+
+### Added
+- CLI serve: opt-in `--metrics` exposes Prometheus text metrics at `/metrics`, using the existing dashboard Bearer token gate and cached dashboard snapshot.
+- Monitoring docs: LAN binding and Windows Firewall guidance, Prometheus Bearer authentication configuration, and an importable Grafana dashboard for health, freshness, quota, reset, cost, and account pace metrics currently populated by the dashboard snapshot.
+
+---
+
 ## [Windows] 0.56.8 - 2026-09-08
 
 Windows release aligned to the reviewed upstream CodexBar **0.56.8** behavior baseline, plus Windows-specific reliability, account-switching, UI, browser-import, and release-pipeline improvements landed since 0.55.0.

@@ -21,7 +21,7 @@
 - **逐服务商凭据管理** — API Key、Cookie 和 OAuth 均可在服务商详情面板管理
 - **凭据加固** — 应用管理的本地敏感存储会在保存时使用 Windows DPAPI 保护
 - **Windows 发布打包** — Inno Setup 安装包、独立便携 exe、WebView2 Runtime 引导、VC++ 运行库引导和 SHA-256 校验文件
-- **CLI** — `codexbar usage`、`codexbar cost`、`codexbar config` 和本机回环 `codexbar serve`，便于脚本化、本地集成和 CI
+- **CLI** — `codexbar usage`、`codexbar cost`、`codexbar config` 和 `codexbar serve`；可按需开启内置 Prometheus `/metrics`，便于脚本化、本地集成和监控
 - **WSL 支持** — CLI 开箱即用，桌面壳层通过 WSLg 运行
 
 ## v0.33.2 更新内容
@@ -133,11 +133,13 @@ winget install Finesssee.Win-CodexBar
 
 Winget 分发已通过 [microsoft/winget-pkgs](https://github.com/microsoft/winget-pkgs/tree/master/manifests/f/Finesssee/Win-CodexBar) 审核。GitHub Release 发布后，新版本可能需要一点时间才会出现在 Winget 中，因为每个版本都要固定自己的安装包 URL 和 SHA-256 哈希。
 
-也可以前往 [GitHub Releases](https://github.com/Finesssee/Win-CodexBar/releases) 下载最新版本。
+也可以前往 [GitHub Releases](https://github.com/Finesssee/Win-CodexBar/releases) 下载最新桌面版本。
 
 - **安装包**：`CodexBar-<version>-Setup.exe`
 - **便携版**：`CodexBar-<version>-portable.exe`
 - **校验和**：每个发布版本都包含 `.sha256` 文件，便于手动校验
+
+Prometheus exporter CLI 单独发布在 [`le-shi/Win-CodexBar` 的 `metrics-v0.56.8` Release](https://github.com/le-shi/Win-CodexBar/releases/tag/metrics-v0.56.8)。可下载独立的 `codexbar-cli.exe`，也可下载包含该文件的 `CodexBarCLI-metrics-v0.56.8-windows-x64.zip`；对应 `.sha256` 文件用于校验。`Finesssee/Win-CodexBar` 的标准 v0.56.8 CLI 不包含 `--metrics` 开关。
 
 安装包会包含桌面应用、Microsoft Evergreen WebView2 引导程序、应用图标、开始菜单快捷方式、卸载信息，以及干净 Windows 机器可能需要的 Visual C++ 运行库引导。便携版 exe 是没有安装器集成的同一个桌面应用；release 构建会静态链接 WebView2 loader，所以便携版用户只需要机器上已安装 Microsoft Edge WebView2 Runtime。
 
@@ -177,6 +179,36 @@ codexbar usage -p claude          # 单个服务商
 codexbar usage -p all             # 所有已启用的服务商
 codexbar cost  -p codex           # 本地成本（JSONL 日志）
 ```
+
+### Prometheus 监控
+
+请使用 [`metrics-v0.56.8` 专用 Release](https://github.com/le-shi/Win-CodexBar/releases/tag/metrics-v0.56.8) 中的 `codexbar-cli.exe`（或对应 zip）；`Finesssee/Win-CodexBar` 的标准 v0.56.8 CLI 不包含 `--metrics` 开关。部署前可用 `serve --help` 确认所选二进制包含该参数。
+
+`serve` 的 Prometheus 端点默认关闭。下面的示例只监听本机真实局域网地址；请按实际网卡地址替换 `192.168.13.111`，并使用随机长 Token：
+
+```powershell
+$env:CODEXBAR_DASHBOARD_TOKEN = '<REPLACE_WITH_A_LONG_RANDOM_TOKEN>'
+.\codexbar-cli.exe serve `
+  --host 192.168.13.111 `
+  --port 8080 `
+  --refresh-interval 300 `
+  --identity redacted `
+  --metrics `
+  --allow-plain-http
+```
+
+验证 Bearer 认证和指标输出：
+
+```powershell
+curl.exe -fsS `
+  -H "Authorization: Bearer $env:CODEXBAR_DASHBOARD_TOKEN" `
+  http://192.168.13.111:8080/metrics |
+  Select-String '^codexbar_'
+```
+
+局域网部署时，应通过 Windows 防火墙只允许 Prometheus 服务器访问 TCP 8080。`--identity redacted` 会隐藏同一 HTTP 服务中受 Token 保护的 Dashboard Snapshot 身份字段，不改变 `/metrics` 输出。完整的 Prometheus `scrape_config`、防火墙命令、指标说明和 Grafana 导入步骤见 [CLI 文档](./docs/CLI.md#prometheus-metrics)。仓库还提供可直接导入的 [Grafana Dashboard](./docs/grafana/codexbar-dashboard.json)。
+
+每次 Dashboard Snapshot 缓存过期后的首个 `/metrics` 请求都会同步重建快照。服务商采集、Claude 多账号采集和本地成本扫描依次参与构建，因此完整耗时可能超过单个服务商的 75 秒超时。CLI 文档中的 Prometheus 示例使用 `5m` 采集周期和 `4m` 超时留出余量；本地成本扫描目前没有整体硬超时，较大的日志目录仍可能需要进一步调大配置或先排查扫描耗时。
 
 ## 支持的服务商
 

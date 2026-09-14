@@ -17,7 +17,11 @@ if [[ "${FAKE_GH_MODE:-ok}" == cross ]]; then
   exit 0
 fi
 if [[ "${1:-}" == repo && "${2:-}" == view ]]; then
-  printf '%s\n' 'nesszer/Win-CodexBar|https://github.com/nesszer/Win-CodexBar'
+  if [[ "${3:-}" == le-shi/Win-CodexBar ]]; then
+    printf '%s\n' 'le-shi/Win-CodexBar|https://github.com/le-shi/Win-CodexBar'
+  else
+    printf '%s\n' 'nesszer/Win-CodexBar|https://github.com/nesszer/Win-CodexBar'
+  fi
 elif [[ "${1:-}" == pr && "${2:-}" == view ]]; then
   printf '%s\n' 'https://github.com/nesszer/Win-CodexBar/pull/361'
 elif [[ "${1:-}" == issue && "${2:-}" == view ]]; then
@@ -44,6 +48,10 @@ bash -n "$repo_root/scripts/gh-safe.sh"
 bash "$repo_root/scripts/gh-safe.sh" \
   --repo nesszer/Win-CodexBar --verify-kind repo --what-if -- \
   pr create --title test --body test >/dev/null
+
+bash "$repo_root/scripts/gh-safe.sh" \
+  --repo le-shi/Win-CodexBar --verify-kind repo --what-if -- \
+  release create metrics-v0.56.8 --verify-tag --title test --notes test >/dev/null
 
 expect_fail bash "$repo_root/scripts/gh-safe.sh" \
   --repo steipete/CodexBar --verify-kind repo --what-if -- \

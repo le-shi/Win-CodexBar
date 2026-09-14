@@ -108,6 +108,10 @@ pub struct WindowPayload {
     pub used_percent: f64,
     pub remaining_percent: f64,
     pub reset_at: Option<DateTime<Utc>>,
+    /// False when the source row is informational or has no authoritative usage value.
+    /// Omission means true for backward-compatible schema-v1 consumers.
+    #[serde(skip_serializing_if = "is_true")]
+    pub usage_known: bool,
     /// Display-only hint. Script clients can ignore this additive schema-v1 key.
     #[serde(skip_serializing_if = "is_false")]
     pub idle: bool,
@@ -115,6 +119,10 @@ pub struct WindowPayload {
 
 fn is_false(value: &bool) -> bool {
     !*value
+}
+
+fn is_true(value: &bool) -> bool {
+    *value
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -466,6 +474,7 @@ fn make_windows(
                     &extra.title,
                     &extra.window,
                     idle_ids.contains(&extra.id),
+                    extra.usage_known,
                 )
             })
             .collect();
@@ -478,7 +487,13 @@ fn make_windows(
     }
     push_model_and_tertiary_windows(&mut windows, usage);
     for extra in &usage.extra_rate_windows {
-        windows.push(make_window(&extra.id, &extra.title, &extra.window));
+        windows.push(make_window_with_idle(
+            &extra.id,
+            &extra.title,
+            &extra.window,
+            false,
+            extra.usage_known,
+        ));
     }
     windows
 }
@@ -494,7 +509,7 @@ fn push_model_and_tertiary_windows(windows: &mut Vec<WindowPayload>, usage: &Usa
 }
 
 fn make_window(kind: &str, label: &str, window: &RateWindow) -> WindowPayload {
-    make_window_with_idle(kind, label, window, false)
+    make_window_with_idle(kind, label, window, false, true)
 }
 
 fn make_window_with_idle(
@@ -502,14 +517,21 @@ fn make_window_with_idle(
     label: &str,
     window: &RateWindow,
     idle: bool,
+    usage_known: bool,
 ) -> WindowPayload {
-    let used = window.used_percent.clamp(0.0, 100.0);
+    let usage_known = usage_known && !window.is_informational && window.used_percent.is_finite();
+    let used = if window.used_percent.is_finite() {
+        window.used_percent.max(0.0)
+    } else {
+        0.0
+    };
     WindowPayload {
         kind: kind.to_string(),
         label: label.to_string(),
         used_percent: used,
-        remaining_percent: (100.0 - used).clamp(0.0, 100.0),
+        remaining_percent: (100.0 - used).max(0.0),
         reset_at: window.resets_at,
+        usage_known,
         idle,
     }
 }
@@ -621,6 +643,7 @@ mod tests {
         assert_eq!(row["windows"][0]["kind"], "session");
         assert_eq!(row["windows"][0]["usedPercent"], 42.0);
         assert_eq!(row["windows"][0]["remainingPercent"], 58.0);
+        assert!(row["windows"][0].get("usageKnown").is_none());
         assert!(
             row["credits"].is_null(),
             "no credits pipeline (documented divergence)"
@@ -721,6 +744,33 @@ mod tests {
         );
     }
 
+    #[test]
+    fn windows_mark_unknown_usage_and_preserve_over_quota_percentages() {
+        let mut usage = UsageSnapshot::new(RateWindow::informational("No active session"));
+        let mut over_quota = RateWindow::new(0.0);
+        over_quota.used_percent = 115.0;
+        usage.secondary = Some(over_quota);
+        usage.extra_rate_windows.push(
+            NamedRateWindow::new("unknown", "Unknown", RateWindow::new(0.0))
+                .with_usage_known(false),
+        );
+
+        let json = serde_json::to_value(build_snapshot(&input(
+            vec![provider_envelope(Ok(ProviderFetchResult::new(
+                usage, "api",
+            )))],
+            DashboardIdentity::Redacted,
+        )))
+        .unwrap();
+        let windows = json["providers"][0]["windows"].as_array().unwrap();
+
+        assert_eq!(windows[0]["usageKnown"], false);
+        assert_eq!(windows[1]["usedPercent"], 115.0);
+        assert_eq!(windows[1]["remainingPercent"], 0.0);
+        assert!(windows[1].get("usageKnown").is_none());
+        assert_eq!(windows[2]["usageKnown"], false);
+    }
+
     fn antigravity_envelope(windows: Vec<NamedRateWindow>) -> ProviderFetchEnvelope {
         let mut usage = UsageSnapshot::new(RateWindow::new(0.0));
         usage.extra_rate_windows = windows;
@@ -777,6 +827,9 @@ mod tests {
         .unwrap();
         let windows = json["providers"][0]["windows"].as_array().unwrap();
         assert!(windows.iter().all(|window| window.get("idle").is_none()));
+        assert!(windows[0].get("usageKnown").is_none());
+        assert_eq!(windows[1]["usageKnown"], false);
+        assert!(windows[2].get("usageKnown").is_none());
     }
 
     #[test]

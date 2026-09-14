@@ -15,6 +15,7 @@ Usage:
 Examples:
   bash scripts/gh-safe.sh --repo nesszer/Win-CodexBar --verify-kind pr --target 361 --what-if -- pr comment 361 --body-file .review/comment.md
   bash scripts/gh-safe.sh --repo nesszer/Win-CodexBar --verify-kind repo --what-if -- pr create --title "..." --body-file body.md
+  bash scripts/gh-safe.sh --repo le-shi/Win-CodexBar --verify-kind repo --what-if -- release create metrics-v0.56.8 --verify-tag --title "..." --notes-file notes.md
 EOF
 }
 
@@ -39,8 +40,8 @@ case "$verify_kind" in repo|pr|issue|release) ;; *) echo "Invalid --verify-kind 
 
 if [[ "${repo,,}" == "steipete/codexbar" ]]; then
   ((allow_upstream_write == 1)) || { echo 'Writes to steipete/CodexBar are blocked by default. Explicit current-turn authorization is required.' >&2; exit 3; }
-elif [[ "${repo,,}" != "nesszer/win-codexbar" ]]; then
-  echo "GitHub writes are not allowlisted for '$repo'. Expected nesszer/Win-CodexBar." >&2
+elif [[ "${repo,,}" != "nesszer/win-codexbar" && "${repo,,}" != "le-shi/win-codexbar" ]]; then
+  echo "GitHub writes are not allowlisted for '$repo'. Expected nesszer/Win-CodexBar or le-shi/Win-CodexBar." >&2
   exit 3
 fi
 

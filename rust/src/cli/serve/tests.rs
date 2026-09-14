@@ -61,12 +61,14 @@ fn validate_serve_args_accepts_loopback_without_token() {
         host: "localhost".into(),
         refresh_interval: 60,
         dashboard_token: None,
+        metrics: false,
         allow_plain_http: false,
         identity: Some("redacted".into()),
     })
     .unwrap();
     assert_eq!(config.host, "127.0.0.1");
     assert!(config.token_digest.is_none());
+    assert!(!config.metrics_enabled);
 }
 
 #[test]
@@ -76,6 +78,7 @@ fn validate_serve_args_rejects_lan_without_token() {
         host: "0.0.0.0".into(),
         refresh_interval: 60,
         dashboard_token: None,
+        metrics: false,
         allow_plain_http: true,
         identity: Some("redacted".into()),
     })
@@ -91,6 +94,7 @@ fn validate_serve_args_rejects_lan_without_allow_plain_http() {
         host: "192.168.0.2".into(),
         refresh_interval: 60,
         dashboard_token: Some("tok".into()),
+        metrics: true,
         allow_plain_http: false,
         identity: Some("redacted".into()),
     })
@@ -153,6 +157,7 @@ fn head_test_config(budget: Duration, token: Option<&str>) -> ServeConfig {
         host: "127.0.0.1".to_string(),
         port: 8080,
         token_digest: token.map(|t| sha256_digest(t.as_bytes())),
+        metrics_enabled: false,
         head_read_budget: budget,
         identity: Some(DashboardIdentity::Redacted),
         dashboard: None,
@@ -668,6 +673,10 @@ fn resolve_route_maps_paths() {
         })
     );
     assert_eq!(
+        resolve_route(&req("/metrics", &[])),
+        Some(ServeRoute::Metrics)
+    );
+    assert_eq!(
         resolve_route(&req("/dashboard/v1/snapshot", &[])),
         Some(ServeRoute::DashboardSnapshot)
     );
@@ -681,6 +690,67 @@ fn resolve_route_maps_paths() {
     assert_eq!(resolve_route(&req("/icons/.svg", &[])), None);
     assert_eq!(resolve_route(&req("/dashboard/v1/other", &[])), None);
     assert_eq!(resolve_route(&req("/usage.json", &[])), None);
+}
+
+#[tokio::test]
+async fn metrics_route_is_not_found_until_enabled() {
+    let config = dashboard_test_config(Some("s3cret"), Some(stub_state_ok()));
+    let response = request_roundtrip_dashboard(
+        b"GET /metrics HTTP/1.1\r\nHost: 127.0.0.1\r\nAuthorization: Bearer s3cret\r\n\r\n",
+        config,
+    )
+    .await;
+    assert!(response.starts_with("HTTP/1.1 404"), "got: {response}");
+    assert!(response.contains(r#""error":"not found""#));
+}
+
+#[tokio::test]
+async fn metrics_route_uses_bearer_gate_and_prometheus_content_type() {
+    let mut missing_config = dashboard_test_config(Some("s3cret"), Some(stub_state_ok()));
+    missing_config.metrics_enabled = true;
+    let missing = request_roundtrip_dashboard(
+        b"GET /metrics HTTP/1.1\r\nHost: 127.0.0.1\r\n\r\n",
+        missing_config,
+    )
+    .await;
+    assert!(missing.starts_with("HTTP/1.1 401"), "got: {missing}");
+    assert!(missing.contains("WWW-Authenticate: Bearer\r\n"));
+
+    let mut wrong_config = dashboard_test_config(Some("s3cret"), Some(stub_state_ok()));
+    wrong_config.metrics_enabled = true;
+    let wrong = request_roundtrip_dashboard(
+        b"GET /metrics HTTP/1.1\r\nHost: 127.0.0.1\r\nAuthorization: Bearer nope\r\n\r\n",
+        wrong_config,
+    )
+    .await;
+    assert!(wrong.starts_with("HTTP/1.1 401"), "got: {wrong}");
+
+    let mut ok_config = dashboard_test_config(Some("s3cret"), Some(stub_state_ok()));
+    ok_config.metrics_enabled = true;
+    let ok = request_roundtrip_dashboard(
+        b"GET /metrics HTTP/1.1\r\nHost: 127.0.0.1\r\nAuthorization: Bearer s3cret\r\n\r\n",
+        ok_config,
+    )
+    .await;
+    assert!(ok.starts_with("HTTP/1.1 200"), "got: {ok}");
+    assert!(ok.contains("Content-Type: text/plain; version=0.0.4; charset=utf-8\r\n"));
+    assert!(ok.contains("Cache-Control: no-store\r\n"));
+    assert!(ok.contains("codexbar_build_info{"), "got: {ok}");
+    assert!(ok.contains("codexbar_quota_used_percent{"), "got: {ok}");
+}
+
+#[tokio::test]
+async fn metrics_route_keeps_the_host_allowlist() {
+    let mut config = dashboard_test_config(Some("s3cret"), Some(stub_state_ok()));
+    config.metrics_enabled = true;
+    config.host = "192.168.13.111".to_string();
+    let forbidden = request_roundtrip_dashboard(
+        b"GET /metrics HTTP/1.1\r\nHost: 192.168.13.112:8080\r\nAuthorization: Bearer s3cret\r\n\r\n",
+        config,
+    )
+    .await;
+    assert!(forbidden.starts_with("HTTP/1.1 403"), "got: {forbidden}");
+    assert!(forbidden.contains(r#""error":"forbidden host""#));
 }
 
 #[tokio::test]

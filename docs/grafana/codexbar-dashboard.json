@@ -1,0 +1,1834 @@
+{
+  "annotations": {
+    "list": [
+      {
+        "builtIn": 1,
+        "datasource": {
+          "type": "grafana",
+          "uid": "-- Grafana --"
+        },
+        "enable": true,
+        "hide": true,
+        "iconColor": "rgba(0, 211, 255, 1)",
+        "name": "Annotations & Alerts",
+        "type": "dashboard"
+      }
+    ]
+  },
+  "editable": true,
+  "fiscalYearStartMonth": 0,
+  "graphTooltip": 1,
+  "id": null,
+  "links": [],
+  "liveNow": false,
+  "panels": [
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${datasource}"
+      },
+      "description": "Prometheus can reach the Win-CodexBar target.",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "mappings": [
+            {
+              "options": {
+                "0": {
+                  "color": "red",
+                  "text": "Down"
+                },
+                "1": {
+                  "color": "green",
+                  "text": "Reachable"
+                }
+              },
+              "type": "value"
+            }
+          ],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "red",
+                "value": null
+              },
+              {
+                "color": "green",
+                "value": 1
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 4,
+        "w": 4,
+        "x": 0,
+        "y": 0
+      },
+      "id": 1,
+      "options": {
+        "colorMode": "background",
+        "graphMode": "none",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "textMode": "auto",
+        "wideLayout": true
+      },
+      "targets": [
+        {
+          "editorMode": "code",
+          "expr": "min(up{job=~\"$job\",instance=~\"$instance\"})",
+          "instant": true,
+          "legendFormat": "scrape",
+          "range": false,
+          "refId": "A"
+        }
+      ],
+      "title": "Prometheus Scrape",
+      "type": "stat"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${datasource}"
+      },
+      "description": "Whether Win-CodexBar produced the snapshot used for this scrape.",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "mappings": [
+            {
+              "options": {
+                "0": {
+                  "color": "red",
+                  "text": "Unavailable"
+                },
+                "1": {
+                  "color": "green",
+                  "text": "Ready"
+                }
+              },
+              "type": "value"
+            }
+          ],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "red",
+                "value": null
+              },
+              {
+                "color": "green",
+                "value": 1
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 4,
+        "w": 4,
+        "x": 4,
+        "y": 0
+      },
+      "id": 2,
+      "options": {
+        "colorMode": "background",
+        "graphMode": "none",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "textMode": "auto",
+        "wideLayout": true
+      },
+      "targets": [
+        {
+          "editorMode": "code",
+          "expr": "min(codexbar_up{job=~\"$job\",instance=~\"$instance\"})",
+          "instant": true,
+          "legendFormat": "snapshot",
+          "range": false,
+          "refId": "A"
+        }
+      ],
+      "title": "Snapshot Build",
+      "type": "stat"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${datasource}"
+      },
+      "description": "Seconds since Win-CodexBar generated the exported dashboard snapshot.",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "yellow",
+                "value": 120
+              },
+              {
+                "color": "red",
+                "value": 300
+              }
+            ]
+          },
+          "unit": "s"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 4,
+        "w": 4,
+        "x": 8,
+        "y": 0
+      },
+      "id": 3,
+      "options": {
+        "colorMode": "value",
+        "graphMode": "area",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "textMode": "auto",
+        "wideLayout": true
+      },
+      "targets": [
+        {
+          "editorMode": "code",
+          "expr": "max(codexbar_snapshot_age_seconds{job=~\"$job\",instance=~\"$instance\"})",
+          "instant": true,
+          "legendFormat": "age",
+          "range": false,
+          "refId": "A"
+        }
+      ],
+      "title": "Snapshot Age",
+      "type": "stat"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${datasource}"
+      },
+      "description": "Whether the exported snapshot is older than the published stale threshold.",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "mappings": [
+            {
+              "options": {
+                "0": {
+                  "color": "green",
+                  "text": "Fresh"
+                },
+                "1": {
+                  "color": "red",
+                  "text": "Stale"
+                }
+              },
+              "type": "value"
+            }
+          ],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 1
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 4,
+        "w": 4,
+        "x": 12,
+        "y": 0
+      },
+      "id": 4,
+      "options": {
+        "colorMode": "background",
+        "graphMode": "none",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "textMode": "auto",
+        "wideLayout": true
+      },
+      "targets": [
+        {
+          "editorMode": "code",
+          "expr": "max(codexbar_snapshot_stale{job=~\"$job\",instance=~\"$instance\"})",
+          "instant": true,
+          "legendFormat": "stale",
+          "range": false,
+          "refId": "A"
+        }
+      ],
+      "title": "Snapshot Freshness",
+      "type": "stat"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${datasource}"
+      },
+      "description": "Percentage of enabled providers whose usage fetch succeeded.",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "decimals": 0,
+          "max": 100,
+          "min": 0,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "red",
+                "value": null
+              },
+              {
+                "color": "yellow",
+                "value": 80
+              },
+              {
+                "color": "green",
+                "value": 100
+              }
+            ]
+          },
+          "unit": "percent"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 4,
+        "w": 4,
+        "x": 16,
+        "y": 0
+      },
+      "id": 5,
+      "options": {
+        "colorMode": "value",
+        "graphMode": "area",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "textMode": "auto",
+        "wideLayout": true
+      },
+      "targets": [
+        {
+          "editorMode": "code",
+          "expr": "100 * sum(codexbar_provider_up{job=~\"$job\",instance=~\"$instance\",provider=~\"$provider\"} * on(job, instance, provider) codexbar_provider_enabled{job=~\"$job\",instance=~\"$instance\",provider=~\"$provider\"}) / clamp_min(sum(codexbar_provider_enabled{job=~\"$job\",instance=~\"$instance\",provider=~\"$provider\"}), 1)",
+          "instant": true,
+          "legendFormat": "healthy",
+          "range": false,
+          "refId": "A"
+        }
+      ],
+      "title": "Enabled Providers Healthy",
+      "type": "stat"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${datasource}"
+      },
+      "description": "Dashboard refresh interval configured in Win-CodexBar.",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "blue",
+                "value": null
+              }
+            ]
+          },
+          "unit": "s"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 4,
+        "w": 4,
+        "x": 20,
+        "y": 0
+      },
+      "id": 6,
+      "options": {
+        "colorMode": "value",
+        "graphMode": "none",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "textMode": "auto",
+        "wideLayout": true
+      },
+      "targets": [
+        {
+          "editorMode": "code",
+          "expr": "max(codexbar_refresh_interval_seconds{job=~\"$job\",instance=~\"$instance\"})",
+          "instant": true,
+          "legendFormat": "refresh",
+          "range": false,
+          "refId": "A"
+        }
+      ],
+      "title": "Refresh Interval",
+      "type": "stat"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${datasource}"
+      },
+      "description": "Current quota utilization for each provider window.",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "decimals": 1,
+          "max": 100,
+          "min": 0,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "yellow",
+                "value": 70
+              },
+              {
+                "color": "red",
+                "value": 90
+              }
+            ]
+          },
+          "unit": "percent"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 10,
+        "x": 0,
+        "y": 4
+      },
+      "id": 7,
+      "options": {
+        "displayMode": "gradient",
+        "maxVizHeight": 300,
+        "minVizHeight": 16,
+        "minVizWidth": 8,
+        "namePlacement": "auto",
+        "orientation": "horizontal",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "showUnfilled": true,
+        "sizing": "auto",
+        "valueMode": "color"
+      },
+      "targets": [
+        {
+          "editorMode": "code",
+          "expr": "codexbar_quota_used_percent{job=~\"$job\",instance=~\"$instance\",provider=~\"$provider\",window=~\"$window\"}",
+          "instant": true,
+          "legendFormat": "{{provider}} / {{window}}",
+          "range": false,
+          "refId": "A"
+        }
+      ],
+      "title": "Quota Used Now",
+      "type": "bargauge"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${datasource}"
+      },
+      "description": "Quota utilization history. Use the provider and window variables to narrow the series.",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "drawStyle": "line",
+            "fillOpacity": 12,
+            "gradientMode": "opacity",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "insertNulls": false,
+            "lineInterpolation": "smooth",
+            "lineWidth": 2,
+            "pointSize": 4,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "never",
+            "spanNulls": true,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "max": 100,
+          "min": 0,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          },
+          "unit": "percent"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 14,
+        "x": 10,
+        "y": 4
+      },
+      "id": 8,
+      "options": {
+        "legend": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "displayMode": "table",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "targets": [
+        {
+          "editorMode": "code",
+          "expr": "codexbar_quota_used_percent{job=~\"$job\",instance=~\"$instance\",provider=~\"$provider\",window=~\"$window\"}",
+          "legendFormat": "{{provider}} / {{window}} used",
+          "range": true,
+          "refId": "A"
+        },
+        {
+          "editorMode": "code",
+          "expr": "codexbar_quota_remaining_percent{job=~\"$job\",instance=~\"$instance\",provider=~\"$provider\",window=~\"$window\"}",
+          "hide": false,
+          "legendFormat": "{{provider}} / {{window}} remaining",
+          "range": true,
+          "refId": "B"
+        }
+      ],
+      "title": "Quota History",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${datasource}"
+      },
+      "description": "Remaining time until each quota window resets. Missing reset timestamps are omitted by the exporter.",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "decimals": 0,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "red",
+                "value": null
+              },
+              {
+                "color": "yellow",
+                "value": 3600
+              },
+              {
+                "color": "green",
+                "value": 21600
+              }
+            ]
+          },
+          "unit": "s"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 7,
+        "w": 8,
+        "x": 0,
+        "y": 12
+      },
+      "id": 9,
+      "options": {
+        "colorMode": "value",
+        "graphMode": "none",
+        "justifyMode": "auto",
+        "orientation": "horizontal",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "textMode": "auto",
+        "wideLayout": true
+      },
+      "targets": [
+        {
+          "editorMode": "code",
+          "expr": "clamp_min(codexbar_quota_reset_timestamp_seconds{job=~\"$job\",instance=~\"$instance\",provider=~\"$provider\",window=~\"$window\"} - time(), 0)",
+          "instant": true,
+          "legendFormat": "{{provider}} / {{window}}",
+          "range": false,
+          "refId": "A"
+        }
+      ],
+      "title": "Time Until Quota Reset",
+      "type": "stat"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${datasource}"
+      },
+      "description": "Whether the latest provider usage collection succeeded.",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "custom": {
+            "align": "auto",
+            "cellOptions": {
+              "type": "auto"
+            },
+            "inspect": false
+          },
+          "mappings": [
+            {
+              "options": {
+                "0": {
+                  "color": "red",
+                  "text": "Failed"
+                },
+                "1": {
+                  "color": "green",
+                  "text": "Healthy"
+                }
+              },
+              "type": "value"
+            }
+          ],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "red",
+                "value": null
+              },
+              {
+                "color": "green",
+                "value": 1
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 7,
+        "w": 8,
+        "x": 8,
+        "y": 12
+      },
+      "id": 10,
+      "options": {
+        "cellHeight": "sm",
+        "footer": {
+          "countRows": false,
+          "fields": "",
+          "reducer": [
+            "sum"
+          ],
+          "show": false
+        },
+        "showHeader": true
+      },
+      "targets": [
+        {
+          "editorMode": "code",
+          "expr": "codexbar_provider_up{job=~\"$job\",instance=~\"$instance\",provider=~\"$provider\"}",
+          "format": "table",
+          "instant": true,
+          "legendFormat": "{{provider}}",
+          "range": false,
+          "refId": "A"
+        }
+      ],
+      "title": "Provider Fetch Health",
+      "transformations": [
+        {
+          "id": "organize",
+          "options": {
+            "excludeByName": {
+              "Time": true,
+              "__name__": true,
+              "instance": true,
+              "job": true
+            },
+            "indexByName": {
+              "provider": 0,
+              "Value": 1
+            },
+            "renameByName": {
+              "Value": "Fetch up",
+              "provider": "Provider"
+            }
+          }
+        }
+      ],
+      "type": "table"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${datasource}"
+      },
+      "description": "Seconds since each provider's data was updated.",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "drawStyle": "line",
+            "fillOpacity": 20,
+            "gradientMode": "opacity",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "insertNulls": false,
+            "lineInterpolation": "linear",
+            "lineWidth": 2,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "never",
+            "spanNulls": true,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          },
+          "unit": "s"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 7,
+        "w": 8,
+        "x": 16,
+        "y": 12
+      },
+      "id": 11,
+      "options": {
+        "legend": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "displayMode": "table",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "targets": [
+        {
+          "editorMode": "code",
+          "expr": "codexbar_provider_data_age_seconds{job=~\"$job\",instance=~\"$instance\",provider=~\"$provider\"}",
+          "legendFormat": "{{provider}}",
+          "range": true,
+          "refId": "A"
+        }
+      ],
+      "title": "Provider Data Age",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${datasource}"
+      },
+      "description": "Estimated provider costs. These series are present only when the provider reports cost data.",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "decimals": 2,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          },
+          "unit": "currencyUSD"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 7,
+        "w": 24,
+        "x": 0,
+        "y": 19
+      },
+      "id": 12,
+      "options": {
+        "colorMode": "value",
+        "graphMode": "area",
+        "justifyMode": "auto",
+        "orientation": "horizontal",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "textMode": "auto",
+        "wideLayout": true
+      },
+      "targets": [
+        {
+          "editorMode": "code",
+          "expr": "codexbar_cost_today_usd{job=~\"$job\",instance=~\"$instance\",provider=~\"$provider\"}",
+          "instant": true,
+          "legendFormat": "{{provider}} today",
+          "range": false,
+          "refId": "A"
+        },
+        {
+          "editorMode": "code",
+          "expr": "codexbar_cost_last_30_days_usd{job=~\"$job\",instance=~\"$instance\",provider=~\"$provider\"}",
+          "instant": true,
+          "legendFormat": "{{provider}} last 30 days",
+          "range": false,
+          "refId": "B"
+        }
+      ],
+      "title": "Estimated Cost",
+      "type": "stat"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${datasource}"
+      },
+      "description": "Per-account used and remaining quota. Account IDs are stable local identifiers; email and display labels are not exported.",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "drawStyle": "line",
+            "fillOpacity": 12,
+            "gradientMode": "opacity",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "insertNulls": false,
+            "lineInterpolation": "smooth",
+            "lineWidth": 2,
+            "pointSize": 4,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "never",
+            "spanNulls": true,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "max": 100,
+          "min": 0,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          },
+          "unit": "percent"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 16,
+        "x": 8,
+        "y": 33
+      },
+      "id": 14,
+      "options": {
+        "legend": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "displayMode": "table",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "targets": [
+        {
+          "editorMode": "code",
+          "expr": "codexbar_account_quota_used_percent{job=~\"$job\",instance=~\"$instance\",provider=~\"$provider\",account=~\"$account\",window=~\"$window\"}",
+          "instant": false,
+          "legendFormat": "{{provider}} / {{account}} / {{window}} used",
+          "range": true,
+          "refId": "A"
+        },
+        {
+          "editorMode": "code",
+          "expr": "codexbar_account_quota_remaining_percent{job=~\"$job\",instance=~\"$instance\",provider=~\"$provider\",account=~\"$account\",window=~\"$window\"}",
+          "instant": false,
+          "legendFormat": "{{provider}} / {{account}} / {{window}} remaining",
+          "range": true,
+          "refId": "B"
+        }
+      ],
+      "title": "Account Quota History",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${datasource}"
+      },
+      "description": "Build identity and snapshot schema, generation time, and stale threshold.",
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "align": "auto",
+            "cellOptions": {
+              "type": "auto"
+            },
+            "inspect": false
+          }
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 7,
+        "w": 8,
+        "x": 0,
+        "y": 26
+      },
+      "id": 15,
+      "options": {
+        "cellHeight": "sm",
+        "footer": {
+          "countRows": false,
+          "fields": "",
+          "reducer": [
+            "sum"
+          ],
+          "show": false
+        },
+        "showHeader": true
+      },
+      "targets": [
+        {
+          "editorMode": "code",
+          "expr": "label_replace(codexbar_build_info{job=~\"$job\",instance=~\"$instance\"}, \"metric\", \"codexbar_build_info\", \"\", \"\") or label_replace(codexbar_snapshot_schema_version{job=~\"$job\",instance=~\"$instance\"}, \"metric\", \"codexbar_snapshot_schema_version\", \"\", \"\") or label_replace(codexbar_snapshot_generated_timestamp_seconds{job=~\"$job\",instance=~\"$instance\"}, \"metric\", \"codexbar_snapshot_generated_timestamp_seconds\", \"\", \"\") or label_replace(codexbar_snapshot_stale_after_seconds{job=~\"$job\",instance=~\"$instance\"}, \"metric\", \"codexbar_snapshot_stale_after_seconds\", \"\", \"\")",
+          "instant": true,
+          "legendFormat": "{{metric}}",
+          "range": false,
+          "refId": "A",
+          "format": "table"
+        }
+      ],
+      "title": "Exporter Metadata",
+      "transformations": [
+        {
+          "id": "organize",
+          "options": {
+            "excludeByName": {
+              "Time": true,
+              "instance": true,
+              "job": true,
+              "__name__": true
+            },
+            "renameByName": {
+              "Value": "Value",
+              "metric": "Metric"
+            }
+          }
+        }
+      ],
+      "type": "table"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${datasource}"
+      },
+      "description": "Provider enablement, fetch result/error code, account adapter state/count, and provider update timestamp. Optional series appear only when their source fields exist.",
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "align": "auto",
+            "cellOptions": {
+              "type": "auto"
+            },
+            "inspect": false
+          }
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 7,
+        "w": 10,
+        "x": 8,
+        "y": 26
+      },
+      "id": 16,
+      "options": {
+        "cellHeight": "sm",
+        "footer": {
+          "countRows": false,
+          "fields": "",
+          "reducer": [
+            "sum"
+          ],
+          "show": false
+        },
+        "showHeader": true
+      },
+      "targets": [
+        {
+          "editorMode": "code",
+          "expr": "label_replace(codexbar_provider_enabled{job=~\"$job\",instance=~\"$instance\",provider=~\"$provider\"}, \"metric\", \"codexbar_provider_enabled\", \"\", \"\") or label_replace(codexbar_provider_up{job=~\"$job\",instance=~\"$instance\",provider=~\"$provider\"}, \"metric\", \"codexbar_provider_up\", \"\", \"\") or label_replace(codexbar_provider_error_code{job=~\"$job\",instance=~\"$instance\",provider=~\"$provider\"}, \"metric\", \"codexbar_provider_error_code\", \"\", \"\") or label_replace(codexbar_provider_accounts_up{job=~\"$job\",instance=~\"$instance\",provider=~\"$provider\"}, \"metric\", \"codexbar_provider_accounts_up\", \"\", \"\") or label_replace(codexbar_provider_accounts_total{job=~\"$job\",instance=~\"$instance\",provider=~\"$provider\"}, \"metric\", \"codexbar_provider_accounts_total\", \"\", \"\") or label_replace(codexbar_provider_updated_timestamp_seconds{job=~\"$job\",instance=~\"$instance\",provider=~\"$provider\"}, \"metric\", \"codexbar_provider_updated_timestamp_seconds\", \"\", \"\")",
+          "instant": true,
+          "legendFormat": "{{provider}} / {{metric}}",
+          "range": false,
+          "refId": "A",
+          "format": "table"
+        }
+      ],
+      "title": "Provider Collection Details",
+      "transformations": [
+        {
+          "id": "organize",
+          "options": {
+            "excludeByName": {
+              "Time": true,
+              "instance": true,
+              "job": true,
+              "__name__": true
+            },
+            "renameByName": {
+              "Value": "Value",
+              "metric": "Metric"
+            }
+          }
+        }
+      ],
+      "type": "table"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${datasource}"
+      },
+      "description": "Whether each provider quota window is marked idle (1) or active (0).",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "custom": {
+            "align": "auto",
+            "cellOptions": {
+              "type": "auto"
+            },
+            "inspect": false
+          },
+          "mappings": [
+            {
+              "options": {
+                "0": {
+                  "color": "green",
+                  "text": "Active"
+                },
+                "1": {
+                  "color": "blue",
+                  "text": "Idle"
+                }
+              },
+              "type": "value"
+            }
+          ],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "blue",
+                "value": 1
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 7,
+        "w": 6,
+        "x": 18,
+        "y": 26
+      },
+      "id": 17,
+      "options": {
+        "cellHeight": "sm",
+        "footer": {
+          "countRows": false,
+          "fields": "",
+          "reducer": [
+            "sum"
+          ],
+          "show": false
+        },
+        "showHeader": true
+      },
+      "targets": [
+        {
+          "editorMode": "code",
+          "expr": "codexbar_quota_idle{job=~\"$job\",instance=~\"$instance\",provider=~\"$provider\",window=~\"$window\"}",
+          "instant": true,
+          "legendFormat": "{{provider}} / {{window}}",
+          "range": false,
+          "refId": "A",
+          "format": "table"
+        }
+      ],
+      "title": "Quota Idle State",
+      "transformations": [
+        {
+          "id": "organize",
+          "options": {
+            "excludeByName": {
+              "Time": true,
+              "instance": true,
+              "job": true
+            },
+            "renameByName": {
+              "Value": "Value",
+              "__name__": "Metric"
+            }
+          }
+        }
+      ],
+      "type": "table"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${datasource}"
+      },
+      "description": "Per-account active/fetch state and the last successful update timestamp.",
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "align": "auto",
+            "cellOptions": {
+              "type": "auto"
+            },
+            "inspect": false
+          }
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 8,
+        "x": 0,
+        "y": 33
+      },
+      "id": 18,
+      "options": {
+        "cellHeight": "sm",
+        "footer": {
+          "countRows": false,
+          "fields": "",
+          "reducer": [
+            "sum"
+          ],
+          "show": false
+        },
+        "showHeader": true
+      },
+      "targets": [
+        {
+          "editorMode": "code",
+          "expr": "label_replace(codexbar_account_active{job=~\"$job\",instance=~\"$instance\",provider=~\"$provider\",account=~\"$account\"}, \"metric\", \"codexbar_account_active\", \"\", \"\") or label_replace(codexbar_account_up{job=~\"$job\",instance=~\"$instance\",provider=~\"$provider\",account=~\"$account\"}, \"metric\", \"codexbar_account_up\", \"\", \"\") or label_replace(codexbar_account_updated_timestamp_seconds{job=~\"$job\",instance=~\"$instance\",provider=~\"$provider\",account=~\"$account\"}, \"metric\", \"codexbar_account_updated_timestamp_seconds\", \"\", \"\")",
+          "instant": true,
+          "legendFormat": "{{provider}} / {{account}} / {{metric}}",
+          "range": false,
+          "refId": "A",
+          "format": "table"
+        }
+      ],
+      "title": "Account Health",
+      "transformations": [
+        {
+          "id": "organize",
+          "options": {
+            "excludeByName": {
+              "Time": true,
+              "instance": true,
+              "job": true,
+              "__name__": true
+            },
+            "renameByName": {
+              "Value": "Value",
+              "metric": "Metric"
+            }
+          }
+        }
+      ],
+      "type": "table"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${datasource}"
+      },
+      "description": "Remaining seconds until each account quota window resets. Unknown reset times are omitted.",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "decimals": 0,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "red",
+                "value": null
+              },
+              {
+                "color": "yellow",
+                "value": 3600
+              },
+              {
+                "color": "green",
+                "value": 21600
+              }
+            ]
+          },
+          "unit": "s"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 7,
+        "w": 8,
+        "x": 0,
+        "y": 41
+      },
+      "id": 19,
+      "options": {
+        "colorMode": "value",
+        "graphMode": "none",
+        "justifyMode": "auto",
+        "orientation": "horizontal",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "textMode": "auto",
+        "wideLayout": true
+      },
+      "targets": [
+        {
+          "editorMode": "code",
+          "expr": "clamp_min(codexbar_account_quota_reset_timestamp_seconds{job=~\"$job\",instance=~\"$instance\",provider=~\"$provider\",account=~\"$account\",window=~\"$window\"} - time(), 0)",
+          "instant": true,
+          "legendFormat": "{{provider}} / {{account}} / {{window}}",
+          "range": false,
+          "refId": "A"
+        }
+      ],
+      "title": "Account Time Until Reset",
+      "type": "stat"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${datasource}"
+      },
+      "description": "Whether each account quota window is marked idle (1) or active (0).",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "custom": {
+            "align": "auto",
+            "cellOptions": {
+              "type": "auto"
+            },
+            "inspect": false
+          },
+          "mappings": [
+            {
+              "options": {
+                "0": {
+                  "color": "green",
+                  "text": "Active"
+                },
+                "1": {
+                  "color": "blue",
+                  "text": "Idle"
+                }
+              },
+              "type": "value"
+            }
+          ],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "blue",
+                "value": 1
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 7,
+        "w": 8,
+        "x": 8,
+        "y": 41
+      },
+      "id": 20,
+      "options": {
+        "cellHeight": "sm",
+        "footer": {
+          "countRows": false,
+          "fields": "",
+          "reducer": [
+            "sum"
+          ],
+          "show": false
+        },
+        "showHeader": true
+      },
+      "targets": [
+        {
+          "editorMode": "code",
+          "expr": "codexbar_account_quota_idle{job=~\"$job\",instance=~\"$instance\",provider=~\"$provider\",account=~\"$account\",window=~\"$window\"}",
+          "instant": true,
+          "legendFormat": "{{provider}} / {{account}} / {{window}}",
+          "range": false,
+          "refId": "A",
+          "format": "table"
+        }
+      ],
+      "title": "Account Quota Idle State",
+      "transformations": [
+        {
+          "id": "organize",
+          "options": {
+            "excludeByName": {
+              "Time": true,
+              "instance": true,
+              "job": true
+            },
+            "renameByName": {
+              "Value": "Value",
+              "__name__": "Metric"
+            }
+          }
+        }
+      ],
+      "type": "table"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${datasource}"
+      },
+      "description": "Actual usage delta from expected pace and expected usage at the current point in the quota window. Negative delta means actual usage is below the expected pace.",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisCenteredZero": true,
+            "axisColorMode": "text",
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "drawStyle": "line",
+            "fillOpacity": 12,
+            "gradientMode": "opacity",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "insertNulls": false,
+            "lineInterpolation": "smooth",
+            "lineWidth": 2,
+            "pointSize": 4,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "never",
+            "spanNulls": true,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          },
+          "unit": "percent"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 7,
+        "w": 8,
+        "x": 16,
+        "y": 41
+      },
+      "id": 21,
+      "options": {
+        "legend": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "displayMode": "table",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "targets": [
+        {
+          "editorMode": "code",
+          "expr": "codexbar_account_pace_delta_percent{job=~\"$job\",instance=~\"$instance\",provider=~\"$provider\",account=~\"$account\",window=~\"$window\"}",
+          "instant": false,
+          "legendFormat": "{{provider}} / {{account}} / {{window}} delta",
+          "range": true,
+          "refId": "A"
+        },
+        {
+          "editorMode": "code",
+          "expr": "codexbar_account_pace_expected_used_percent{job=~\"$job\",instance=~\"$instance\",provider=~\"$provider\",account=~\"$account\",window=~\"$window\"}",
+          "instant": false,
+          "legendFormat": "{{provider}} / {{account}} / {{window}} expected",
+          "range": true,
+          "refId": "B"
+        }
+      ],
+      "title": "Account Pace",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${datasource}"
+      },
+      "description": "Pace stage, whether quota should last until reset, and exhaustion ETA when available.",
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "align": "auto",
+            "cellOptions": {
+              "type": "auto"
+            },
+            "inspect": false
+          }
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 24,
+        "x": 0,
+        "y": 48
+      },
+      "id": 22,
+      "options": {
+        "cellHeight": "sm",
+        "footer": {
+          "countRows": false,
+          "fields": "",
+          "reducer": [
+            "sum"
+          ],
+          "show": false
+        },
+        "showHeader": true
+      },
+      "targets": [
+        {
+          "editorMode": "code",
+          "expr": "label_replace(codexbar_account_pace_stage_info{job=~\"$job\",instance=~\"$instance\",provider=~\"$provider\",account=~\"$account\",window=~\"$window\"}, \"metric\", \"codexbar_account_pace_stage_info\", \"\", \"\") or label_replace(codexbar_account_pace_will_last_to_reset{job=~\"$job\",instance=~\"$instance\",provider=~\"$provider\",account=~\"$account\",window=~\"$window\"}, \"metric\", \"codexbar_account_pace_will_last_to_reset\", \"\", \"\") or label_replace(codexbar_account_pace_eta_seconds{job=~\"$job\",instance=~\"$instance\",provider=~\"$provider\",account=~\"$account\",window=~\"$window\"}, \"metric\", \"codexbar_account_pace_eta_seconds\", \"\", \"\")",
+          "instant": true,
+          "legendFormat": "{{provider}} / {{account}} / {{window}} / {{stage}} / {{metric}}",
+          "range": false,
+          "refId": "A",
+          "format": "table"
+        }
+      ],
+      "title": "Account Pace Forecast",
+      "transformations": [
+        {
+          "id": "organize",
+          "options": {
+            "excludeByName": {
+              "Time": true,
+              "instance": true,
+              "job": true,
+              "__name__": true
+            },
+            "renameByName": {
+              "Value": "Value",
+              "metric": "Metric"
+            }
+          }
+        }
+      ],
+      "type": "table"
+    }
+  ],
+  "refresh": "30s",
+  "schemaVersion": 39,
+  "tags": [
+    "win-codexbar",
+    "prometheus",
+    "ai-usage"
+  ],
+  "templating": {
+    "list": [
+      {
+        "current": {},
+        "hide": 0,
+        "includeAll": false,
+        "label": "Prometheus",
+        "multi": false,
+        "name": "datasource",
+        "options": [],
+        "query": "prometheus",
+        "refresh": 1,
+        "regex": "",
+        "skipUrlSync": false,
+        "type": "datasource"
+      },
+      {
+        "current": {},
+        "datasource": {
+          "type": "prometheus",
+          "uid": "${datasource}"
+        },
+        "definition": "label_values(codexbar_up, job)",
+        "hide": 0,
+        "includeAll": false,
+        "label": "Job",
+        "multi": false,
+        "name": "job",
+        "options": [],
+        "query": "label_values(codexbar_up, job)",
+        "refresh": 1,
+        "regex": "",
+        "skipUrlSync": false,
+        "sort": 1,
+        "type": "query"
+      },
+      {
+        "allValue": ".*",
+        "current": {
+          "text": "All",
+          "value": "$__all"
+        },
+        "datasource": {
+          "type": "prometheus",
+          "uid": "${datasource}"
+        },
+        "definition": "label_values(codexbar_up{job=~\"$job\"}, instance)",
+        "hide": 0,
+        "includeAll": true,
+        "label": "Instance",
+        "multi": true,
+        "name": "instance",
+        "options": [],
+        "query": "label_values(codexbar_up{job=~\"$job\"}, instance)",
+        "refresh": 1,
+        "regex": "",
+        "skipUrlSync": false,
+        "sort": 1,
+        "type": "query"
+      },
+      {
+        "allValue": ".*",
+        "current": {
+          "text": "All",
+          "value": "$__all"
+        },
+        "datasource": {
+          "type": "prometheus",
+          "uid": "${datasource}"
+        },
+        "definition": "label_values(codexbar_provider_enabled{job=~\"$job\",instance=~\"$instance\"}, provider)",
+        "hide": 0,
+        "includeAll": true,
+        "label": "Provider",
+        "multi": true,
+        "name": "provider",
+        "options": [],
+        "query": "label_values(codexbar_provider_enabled{job=~\"$job\",instance=~\"$instance\"}, provider)",
+        "refresh": 1,
+        "regex": "",
+        "skipUrlSync": false,
+        "sort": 1,
+        "type": "query"
+      },
+      {
+        "allValue": ".*",
+        "current": {
+          "text": "All",
+          "value": "$__all"
+        },
+        "datasource": {
+          "type": "prometheus",
+          "uid": "${datasource}"
+        },
+        "definition": "label_values(codexbar_quota_used_percent{job=~\"$job\",instance=~\"$instance\",provider=~\"$provider\"}, window)",
+        "hide": 0,
+        "includeAll": true,
+        "label": "Window",
+        "multi": true,
+        "name": "window",
+        "options": [],
+        "query": "label_values(codexbar_quota_used_percent{job=~\"$job\",instance=~\"$instance\",provider=~\"$provider\"}, window)",
+        "refresh": 1,
+        "regex": "",
+        "skipUrlSync": false,
+        "sort": 1,
+        "type": "query"
+      },
+      {
+        "allValue": ".*",
+        "current": {
+          "text": "All",
+          "value": "$__all"
+        },
+        "datasource": {
+          "type": "prometheus",
+          "uid": "${datasource}"
+        },
+        "definition": "label_values(codexbar_account_active{job=~\"$job\",instance=~\"$instance\",provider=~\"$provider\"}, account)",
+        "hide": 0,
+        "includeAll": true,
+        "label": "Account",
+        "multi": true,
+        "name": "account",
+        "options": [],
+        "query": "label_values(codexbar_account_active{job=~\"$job\",instance=~\"$instance\",provider=~\"$provider\"}, account)",
+        "refresh": 1,
+        "regex": "",
+        "skipUrlSync": false,
+        "sort": 1,
+        "type": "query"
+      }
+    ]
+  },
+  "time": {
+    "from": "now-24h",
+    "to": "now"
+  },
+  "timepicker": {},
+  "timezone": "browser",
+  "title": "Win-CodexBar / Prometheus",
+  "uid": "win-codexbar-prometheus",
+  "version": 2,
+  "weekStart": ""
+}

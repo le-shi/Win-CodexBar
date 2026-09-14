@@ -67,6 +67,8 @@ nul
 !/docs/adr/
 /docs/adr/*
 !/docs/adr/*.md
+!/docs/grafana/
+!/docs/grafana/codexbar-dashboard.json
 /scripts/*
 /docs/ui-parity-workflow.md
 /scripts/crop_vm_preferences_proof.sh
