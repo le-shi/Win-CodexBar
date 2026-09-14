@@ -1,6 +1,6 @@
 # Changelog
 
-## [Windows] metrics-v0.56.8-r1 - 2026-09-14
+## [Windows] metrics-v0.56.8-r2 - 2026-09-14
 
 ### Added
 - CLI serve: opt-in `--metrics` exposes Prometheus text metrics at `/metrics`, using the existing dashboard Bearer token gate and cached dashboard snapshot.

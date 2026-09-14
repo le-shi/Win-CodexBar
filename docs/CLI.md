@@ -89,7 +89,7 @@ Typical endpoints: `/health`, `/usage`, `/cost` (and dashboard snapshot routes w
 
 #### Prometheus metrics
 
-Download `codexbar-cli.exe` or `CodexBarCLI-metrics-v0.56.8-r1-windows-x64.zip` from the dedicated [`metrics-v0.56.8-r1` release](https://github.com/le-shi/Win-CodexBar/releases/tag/metrics-v0.56.8-r1). The standard `Finesssee/Win-CodexBar` v0.56.8 CLI does not contain `--metrics`. A source build of this branch also works after copying `target\release\codexbar.exe` to `codexbar-cli.exe`. Confirm the selected binary before deployment:
+Download `codexbar-cli.exe` or `CodexBarCLI-metrics-v0.56.8-r2-windows-x64.zip` from the dedicated [`metrics-v0.56.8-r2` release](https://github.com/le-shi/Win-CodexBar/releases/tag/metrics-v0.56.8-r2). The standard `Finesssee/Win-CodexBar` v0.56.8 CLI does not contain `--metrics`. A source build of this branch also works after copying `target\release\codexbar.exe` to `codexbar-cli.exe`. Confirm the selected binary before deployment:
 
 ```powershell
 .\codexbar-cli.exe serve --help | Select-String -SimpleMatch '--metrics'
