@@ -1,0 +1,170 @@
+groups:
+  - name: win-codexbar-codex
+    rules:
+      - record: codexbar:codex_provider_data_fresh
+        expr: |
+          (codexbar_provider_enabled{job="codexbar-codex",provider="codex"} == 1)
+          and on (job, instance)
+          (codexbar_up{job="codexbar-codex"} == 1)
+          and on (job, instance)
+          (codexbar_snapshot_stale{job="codexbar-codex"} == 0)
+          and on (job, instance, provider)
+          (codexbar_provider_up{job="codexbar-codex",provider="codex"} == 1)
+          and on (job, instance, provider)
+          (
+            codexbar_provider_data_age_seconds{job="codexbar-codex",provider="codex"}
+            <= on (job, instance) group_left
+            clamp_min(codexbar_snapshot_stale_after_seconds{job="codexbar-codex"}, 900)
+          )
+
+      - alert: CodexBarExporterDown
+        expr: up{job="codexbar-codex"} == 0
+        for: 10m
+        labels:
+          severity: critical
+          service: win-codexbar
+          provider: codex
+        annotations:
+          summary: "Win-CodexBar exporter 无法抓取"
+          description: "{{ $labels.instance }} 连续 10 分钟抓取失败；请检查进程、网络、Bearer Token 和 Host 校验。"
+
+      - alert: CodexBarSnapshotBuildFailed
+        expr: codexbar_up{job="codexbar-codex"} == 0
+        for: 10m
+        labels:
+          severity: critical
+          service: win-codexbar
+          provider: codex
+        annotations:
+          summary: "Win-CodexBar 快照构建持续失败"
+          description: "{{ $labels.instance }} 的 HTTP 抓取成功，但 exporter 连续 10 分钟无法生成监控快照。"
+
+      - alert: CodexProviderMissingOrDisabled
+        expr: |
+          (
+            (up{job="codexbar-codex"} == 1)
+            and on (job, instance)
+            (codexbar_up{job="codexbar-codex"} == 1)
+          )
+          unless on (job, instance)
+          (codexbar_provider_enabled{job="codexbar-codex",provider="codex"} == 1)
+        for: 10m
+        labels:
+          severity: critical
+          service: win-codexbar
+          provider: codex
+        annotations:
+          summary: "Codex provider 未启用"
+          description: "{{ $labels.instance }} 的 exporter 可用，但快照中没有已启用的 Codex provider。"
+
+      - alert: CodexBarSnapshotStale
+        expr: |
+          (codexbar_snapshot_stale{job="codexbar-codex"} == 1)
+          and on (job, instance)
+          (codexbar_provider_enabled{job="codexbar-codex",provider="codex"} == 1)
+        for: 10m
+        labels:
+          severity: warning
+          service: win-codexbar
+          provider: codex
+        annotations:
+          summary: "Win-CodexBar 快照过旧"
+          description: "{{ $labels.instance }} 的快照年龄已经超过 exporter 自身的 stale 阈值。"
+
+      - alert: CodexProviderFetchFailed
+        expr: |
+          (codexbar_provider_enabled{job="codexbar-codex",provider="codex"} == 1)
+          and on (job, instance, provider)
+          (codexbar_provider_up{job="codexbar-codex",provider="codex"} == 0)
+          and on (job, instance)
+          (codexbar_up{job="codexbar-codex"} == 1)
+          and on (job, instance)
+          (codexbar_snapshot_stale{job="codexbar-codex"} == 0)
+        for: 10m
+        labels:
+          severity: critical
+          service: win-codexbar
+        annotations:
+          summary: "Codex 用量采集失败"
+          description: "{{ $labels.instance }} 连续 10 分钟无法采集 Codex 用量；错误码可查询 codexbar_provider_error_code。"
+
+      - alert: CodexProviderDataTooOld
+        expr: |
+          (
+            codexbar_provider_data_age_seconds{job="codexbar-codex",provider="codex"}
+            > on (job, instance) group_left
+            clamp_min(codexbar_snapshot_stale_after_seconds{job="codexbar-codex"}, 900)
+          )
+          and on (job, instance, provider)
+          (codexbar_provider_up{job="codexbar-codex",provider="codex"} == 1)
+          and on (job, instance)
+          (codexbar_snapshot_stale{job="codexbar-codex"} == 0)
+        for: 10m
+        labels:
+          severity: warning
+          service: win-codexbar
+        annotations:
+          summary: "Codex 用量数据过旧"
+          description: "{{ $labels.instance }} 的 Codex provider 数据持续过旧，当前年龄为 {{ $value | humanizeDuration }}。"
+
+      - alert: CodexQuotaDataMissing
+        expr: |
+          (codexbar:codex_provider_data_fresh{job="codexbar-codex",provider="codex"} == 1)
+          unless on (job, instance, provider)
+          codexbar_quota_used_percent{job="codexbar-codex",provider="codex"}
+        for: 15m
+        labels:
+          severity: warning
+          service: win-codexbar
+        annotations:
+          summary: "Codex 配额窗口数据缺失"
+          description: "{{ $labels.instance }} 的 Codex 采集状态正常且数据新鲜，但连续 15 分钟没有任何可监控的配额窗口。"
+
+      - alert: CodexQuotaRemainingLow
+        expr: |
+          (
+            (codexbar_quota_remaining_percent{job="codexbar-codex",provider="codex"} <= 20)
+            and on (job, instance, provider, window)
+            (codexbar_quota_remaining_percent{job="codexbar-codex",provider="codex"} > 5)
+          )
+          and on (job, instance, provider, window)
+          (codexbar_quota_idle{job="codexbar-codex",provider="codex"} == 0)
+          and on (job, instance, provider)
+          (codexbar:codex_provider_data_fresh{job="codexbar-codex",provider="codex"} == 1)
+        for: 10m
+        labels:
+          severity: warning
+          service: win-codexbar
+        annotations:
+          summary: "Codex {{ $labels.window }} 剩余额度偏低"
+          description: "{{ $labels.instance }} 的 {{ $labels.window }} 窗口剩余 {{ printf \"%.1f\" $value }}%。"
+
+      - alert: CodexQuotaRemainingCritical
+        expr: |
+          (codexbar_quota_remaining_percent{job="codexbar-codex",provider="codex"} <= 5)
+          and on (job, instance, provider, window)
+          (codexbar_quota_idle{job="codexbar-codex",provider="codex"} == 0)
+          and on (job, instance, provider)
+          (codexbar:codex_provider_data_fresh{job="codexbar-codex",provider="codex"} == 1)
+        for: 5m
+        labels:
+          severity: critical
+          service: win-codexbar
+        annotations:
+          summary: "Codex {{ $labels.window }} 剩余额度严重不足"
+          description: "{{ $labels.instance }} 的 {{ $labels.window }} 窗口只剩 {{ printf \"%.1f\" $value }}%。"
+
+      - alert: CodexQuotaResetOverdue
+        expr: |
+          ((time() - codexbar_quota_reset_timestamp_seconds{job="codexbar-codex",provider="codex"}) > 2700)
+          and on (job, instance, provider, window)
+          (codexbar_quota_idle{job="codexbar-codex",provider="codex"} == 0)
+          and on (job, instance, provider)
+          (codexbar:codex_provider_data_fresh{job="codexbar-codex",provider="codex"} == 1)
+        for: 10m
+        labels:
+          severity: warning
+          service: win-codexbar
+        annotations:
+          summary: "Codex {{ $labels.window }} 配额重置逾期"
+          description: "{{ $labels.instance }} 的重置时间已经过去 {{ $value | humanizeDuration }}，但新窗口仍未发布。"

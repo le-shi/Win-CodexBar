@@ -332,13 +332,15 @@ Optional snapshot fields do not produce a zero-valued placeholder series when th
 
 To use the included Grafana dashboard, open **Dashboards → New → Import**, upload [`docs/grafana/codexbar-dashboard.json`](./grafana/codexbar-dashboard.json), and select the Prometheus data source that scrapes this job. The dashboard covers exporter metadata, scrape/snapshot freshness, provider collection and account-adapter state, quota use/remaining/reset/idle values, costs, and per-account pace forecasts currently populated by the production snapshot. Its `job`, `instance`, `provider`, `window`, and `account` variables filter the corresponding panels.
 
+For a Codex-only deployment, use the ready-to-run Windows scripts, Prometheus example, alert rules, and dedicated Grafana dashboard under [`docs/prometheus/codex-only`](./prometheus/codex-only/README.zh-CN.md).
+
 ### Config
 
 ```powershell
 codexbar config providers
-codexbar config enable -p cursor
-codexbar config disable -p cursor
-printf '%s' $env:OPENROUTER_API_KEY | codexbar config set-api-key -p openrouter --stdin
+codexbar config enable cursor
+codexbar config disable cursor
+$env:OPENROUTER_API_KEY | codexbar config set-api-key openrouter --stdin
 codexbar config validate
 ```
 

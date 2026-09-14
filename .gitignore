@@ -69,6 +69,10 @@ nul
 !/docs/adr/*.md
 !/docs/grafana/
 !/docs/grafana/codexbar-dashboard.json
+!/docs/grafana/codexbar-codex-dashboard.json
+!/docs/prometheus/
+!/docs/prometheus/codex-only/
+!/docs/prometheus/codex-only/**
 /scripts/*
 /docs/ui-parity-workflow.md
 /scripts/crop_vm_preferences_proof.sh
