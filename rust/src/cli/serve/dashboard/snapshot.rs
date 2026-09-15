@@ -74,6 +74,8 @@ pub struct SnapshotProvider {
     pub status: Option<StatusPayload>,
     pub identity: Option<IdentityPayload>,
     pub windows: Vec<WindowPayload>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub reset_credits_available: Option<u32>,
     pub credits: Option<CreditsPayload>,
     pub cost: Option<CostPayload>,
     pub display: DisplayPayload,
@@ -297,36 +299,39 @@ fn build_provider(
         })
     });
 
-    let (source, identity, windows, updated_at, error) = match &envelope.fetch {
-        Ok(result) => {
-            let source = dashboard_source(&result.source_label);
-            let identity = make_identity(&result.usage, input.identity);
-            let windows = make_windows(
-                &envelope.id,
-                &envelope.session_label,
-                &envelope.weekly_label,
-                &result.usage,
-            );
-            (
-                source,
-                identity,
-                windows,
-                Some(result.usage.updated_at),
+    let (source, identity, windows, reset_credits_available, updated_at, error) =
+        match &envelope.fetch {
+            Ok(result) => {
+                let source = dashboard_source(&result.source_label);
+                let identity = make_identity(&result.usage, input.identity);
+                let windows = make_windows(
+                    &envelope.id,
+                    &envelope.session_label,
+                    &envelope.weekly_label,
+                    &result.usage,
+                );
+                (
+                    source,
+                    identity,
+                    windows,
+                    result.reset_credits_available,
+                    Some(result.usage.updated_at),
+                    None,
+                )
+            }
+            Err(message) => (
+                "unknown".to_string(),
                 None,
-            )
-        }
-        Err(message) => (
-            "unknown".to_string(),
-            None,
-            Vec::new(),
-            Some(input.generated_at),
-            Some(ProviderErrorPayload {
-                code: 1,
-                message: message.clone(),
-                kind: Some("provider".to_string()),
-            }),
-        ),
-    };
+                Vec::new(),
+                None,
+                Some(input.generated_at),
+                Some(ProviderErrorPayload {
+                    code: 1,
+                    message: message.clone(),
+                    kind: Some("provider".to_string()),
+                }),
+            ),
+        };
 
     let (accounts, accounts_error) = match claude {
         Some(claude) => match &claude.accounts {
@@ -362,6 +367,7 @@ fn build_provider(
         status: None,
         identity,
         windows,
+        reset_credits_available,
         credits: None,
         cost,
         display: DisplayPayload {
@@ -648,6 +654,7 @@ mod tests {
             row["credits"].is_null(),
             "no credits pipeline (documented divergence)"
         );
+        assert!(row.get("resetCreditsAvailable").is_none());
         assert!(row["cost"].is_null());
         assert!(row["error"].is_null());
         assert_eq!(row["display"]["accentColor"], "#6E6E6E");
@@ -672,6 +679,20 @@ mod tests {
         let row = &serde_json::to_value(&payload).unwrap()["providers"][0];
         assert_eq!(row["identity"]["accountEmail"], "me@example.com");
         assert_eq!(row["identity"]["plan"], "Claude Max");
+    }
+
+    #[test]
+    fn codex_reset_credits_are_structured_in_snapshot() {
+        let mut result = fetch_result(1.0, None, None);
+        result.reset_credits_available = Some(3);
+        let mut envelope = provider_envelope(Ok(result));
+        envelope.id = "codex".to_string();
+        envelope.display_name = "Codex".to_string();
+
+        let payload = build_snapshot(&input(vec![envelope], DashboardIdentity::Redacted));
+        let row = &serde_json::to_value(payload).unwrap()["providers"][0];
+
+        assert_eq!(row["resetCreditsAvailable"], 3);
     }
 
     #[test]

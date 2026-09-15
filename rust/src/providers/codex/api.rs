@@ -10,9 +10,11 @@ use crate::providers::openai::OpenAISubscriptionFetchResult;
 use base64::Engine;
 use chrono::{DateTime, TimeZone, Utc};
 use serde::Deserialize;
+use std::collections::HashMap;
 use std::path::PathBuf;
-use std::sync::{Mutex, OnceLock};
+use std::sync::{Arc, Mutex, OnceLock};
 use std::time::{Duration, Instant, SystemTime};
+use tokio::sync::Mutex as AsyncMutex;
 
 #[path = "subscription.rs"]
 mod subscription;
@@ -21,6 +23,7 @@ const DEFAULT_BASE_URL: &str = "https://chatgpt.com/backend-api";
 const USAGE_PATH: &str = "/wham/usage";
 const RESET_CREDITS_PATH: &str = "/wham/rate-limit-reset-credits";
 const CREDENTIAL_CACHE_TTL: Duration = Duration::from_secs(5);
+const RESET_CREDITS_CACHE_TTL: Duration = Duration::from_secs(10 * 60);
 /// How long an external OAuth token set is trusted after the CLI last
 /// refreshed it. Matches the CLI's own `needs_refresh` window (8 days) so a
 /// token the CLI considers fresh is also trusted here (upstream 0.50.1 #2944).
@@ -28,6 +31,10 @@ const EXTERNAL_OAUTH_STALENESS_WINDOW: chrono::TimeDelta = chrono::Duration::day
 const EXTERNAL_OAUTH_REFRESH_WINDOW: chrono::TimeDelta = chrono::Duration::minutes(5);
 
 static CREDENTIAL_CACHE: OnceLock<Mutex<Option<CachedCodexCredentials>>> = OnceLock::new();
+static RESET_CREDITS_CACHE: OnceLock<Mutex<HashMap<String, ResetCreditsCacheSlot>>> =
+    OnceLock::new();
+
+type ResetCreditsCacheSlot = Arc<AsyncMutex<ResetCreditsCacheState>>;
 
 /// Codex API client
 pub struct CodexApi {
@@ -113,6 +120,13 @@ impl CodexApi {
     pub async fn fetch_usage(
         &self,
     ) -> Result<(UsageSnapshot, Option<CostSnapshot>), ProviderError> {
+        let (usage, cost, _) = self.fetch_usage_with_reset_credits().await?;
+        Ok((usage, cost))
+    }
+
+    pub(super) async fn fetch_usage_with_reset_credits(
+        &self,
+    ) -> Result<(UsageSnapshot, Option<CostSnapshot>, Option<u32>), ProviderError> {
         let creds = self.load_credentials()?;
         let base_url = self.resolve_base_url();
         let auth_path = self.get_auth_path();
@@ -120,10 +134,13 @@ impl CodexApi {
         let exact_oauth = creds.is_external_oauth;
         let mut state = weekly_reset::load(&scope);
 
-        let (first_usage, first_cost, first_credits) =
+        let first_fetch_started = Instant::now();
+        let (first_usage, first_cost, first_credits_observation) =
             self.fetch_usage_once(&creds, &base_url).await?;
+        let first_credits = first_credits_observation.value.as_ref();
+        let mut reset_credits_available = first_credits.map(|credits| credits.available_count);
         let observed_at = Utc::now();
-        let first_inventory = weekly_reset::inventory(first_credits.as_ref(), observed_at);
+        let first_inventory = weekly_reset::inventory(first_credits, observed_at);
         let (usage, cost) = match weekly_reset::initial_decision(
             &mut state,
             &first_usage,
@@ -142,39 +159,80 @@ impl CodexApi {
                 (usage, first_cost)
             }
             weekly_reset::InitialDecision::RequiresConfirmation => {
+                let initial_evidence_observation = self
+                    .initial_reset_credit_evidence_observation(
+                        &creds,
+                        &base_url,
+                        &first_credits_observation,
+                        first_fetch_started,
+                    )
+                    .await;
+                let display_after_initial = initial_evidence_observation
+                    .as_ref()
+                    .unwrap_or(&first_credits_observation);
+                if let Some(credits) = display_after_initial.value.as_ref() {
+                    reset_credits_available = Some(credits.available_count);
+                }
                 let confirmation = self.fetch_usage_once(&creds, &base_url).await;
-                let (confirmation_usage, confirmation_cost, confirmation_credits) =
-                    match confirmation {
-                        Ok(value) => value,
-                        Err(error) => {
-                            tracing::debug!(
-                                %error,
-                                "Codex weekly reset confirmation failed; preserving first successful usage"
-                            );
-                            let result = Self::preserve_after_confirmation_failure(
-                                &state,
-                                first_usage,
-                                first_cost,
-                            );
-                            weekly_reset::save(&scope, &state);
-                            let (usage, cost) = result;
-                            let usage = self
-                                .enrich_subscription_metadata(
-                                    &base_url,
-                                    &creds.access_token,
-                                    creds.account_id.as_deref(),
-                                    usage,
-                                )
-                                .await;
-                            return Ok((usage, cost));
-                        }
-                    };
+                let (mut confirmation_usage, confirmation_cost, _) = match confirmation {
+                    Ok(value) => value,
+                    Err(error) => {
+                        tracing::debug!(
+                            %error,
+                            "Codex weekly reset confirmation failed; preserving first successful usage"
+                        );
+                        let result = Self::preserve_after_confirmation_failure(
+                            &state,
+                            first_usage,
+                            first_cost,
+                        );
+                        weekly_reset::save(&scope, &state);
+                        let (usage, cost) = result;
+                        let usage =
+                            apply_reset_credits_window(usage, display_after_initial.value.as_ref());
+                        let usage = self
+                            .enrich_subscription_metadata(
+                                &base_url,
+                                &creds.access_token,
+                                creds.account_id.as_deref(),
+                                usage,
+                            )
+                            .await;
+                        return Ok((usage, cost, reset_credits_available));
+                    }
+                };
+                let fresh_confirmation_credits = match initial_evidence_observation.as_ref() {
+                    Some(initial) => {
+                        self.refresh_rate_limit_reset_credits_after(&creds, &base_url, initial)
+                            .await
+                    }
+                    None => None,
+                };
+                let confirmation_credits_observation = fresh_confirmation_credits
+                    .as_ref()
+                    .or(initial_evidence_observation.as_ref())
+                    .unwrap_or(&first_credits_observation);
+                let initial_credits = initial_evidence_observation
+                    .as_ref()
+                    .and_then(|observation| observation.value.as_ref());
+                let confirmation_credits = fresh_confirmation_credits
+                    .as_ref()
+                    .and_then(|observation| observation.value.as_ref());
+                confirmation_usage = apply_reset_credits_window(
+                    confirmation_usage,
+                    confirmation_credits_observation.value.as_ref(),
+                );
+                if let Some(credits) = confirmation_credits {
+                    reset_credits_available = Some(credits.available_count);
+                }
+                let initial_inventory_for_confirmation =
+                    weekly_reset::inventory(initial_credits, observed_at);
                 let confirmation_inventory =
-                    weekly_reset::inventory(confirmation_credits.as_ref(), Utc::now());
+                    weekly_reset::inventory(confirmation_credits, Utc::now());
                 match weekly_reset::confirmation_decision(
                     &mut state,
                     &first_usage,
-                    first_inventory.as_ref(),
+                    initial_inventory_for_confirmation.as_ref(),
                     &confirmation_usage,
                     confirmation_inventory.as_ref(),
                     exact_oauth,
@@ -191,6 +249,10 @@ impl CodexApi {
                     }
                     weekly_reset::ConfirmationDecision::Preserve => {
                         let usage = weekly_reset::preserve_weekly(&state, first_usage);
+                        let usage = apply_reset_credits_window(
+                            usage,
+                            confirmation_credits_observation.value.as_ref(),
+                        );
                         weekly_reset::save(&scope, &state);
                         (usage, first_cost)
                     }
@@ -205,7 +267,7 @@ impl CodexApi {
                 usage,
             )
             .await;
-        Ok((usage, cost))
+        Ok((usage, cost, reset_credits_available))
     }
 
     /// Subscription metadata is optional enrichment. Usage remains usable when
@@ -247,7 +309,7 @@ impl CodexApi {
         &self,
         creds: &CodexCredentials,
         base_url: &str,
-    ) -> Result<(UsageSnapshot, Option<CostSnapshot>, Option<ResetCredits>), ProviderError> {
+    ) -> Result<(UsageSnapshot, Option<CostSnapshot>, Arc<CachedResetCredits>), ProviderError> {
         let url = format!("{}{}", base_url, USAGE_PATH);
         let mut request = self
             .client
@@ -269,18 +331,143 @@ impl CodexApi {
             .json()
             .await
             .map_err(|e| ProviderError::Parse(e.to_string()))?;
-        let (mut usage, cost) = self.build_result_from_json(&json)?;
-        let reset_credits = self
-            .fetch_rate_limit_reset_credits(creds, base_url)
-            .await
-            .ok();
-        if let Some(reset_credits) = reset_credits.as_ref()
-            && reset_credits.available_count > 0
+        let (usage, cost) = self.build_result_from_json(&json)?;
+        let reset_credits_observation = self
+            .fetch_rate_limit_reset_credits_cached(creds, base_url)
+            .await;
+        let usage = apply_reset_credits_window(usage, reset_credits_observation.value.as_ref());
+        Ok((usage, cost, reset_credits_observation))
+    }
+
+    async fn fetch_rate_limit_reset_credits_cached(
+        &self,
+        creds: &CodexCredentials,
+        base_url: &str,
+    ) -> Arc<CachedResetCredits> {
+        let cache_key = self.reset_credits_cache_key(creds, base_url);
+        let slot = Self::reset_credits_cache_slot(cache_key);
+        let mut state = slot.lock().await;
+
+        if let Some(cached) = state.observation.as_ref()
+            && cached.loaded_at.elapsed() < RESET_CREDITS_CACHE_TTL
         {
-            let window = reset_credits_rate_window(reset_credits, Utc::now());
-            usage = usage.with_extra_rate_window("reset-credits", "Reset credits", window);
+            return Arc::clone(cached);
         }
-        Ok((usage, cost, reset_credits))
+
+        let cached = self.load_reset_credits_observation(creds, base_url).await;
+        state.observation = Some(Arc::clone(&cached));
+        state.confirmation_failure_at = None;
+        cached
+    }
+
+    async fn refresh_rate_limit_reset_credits_after(
+        &self,
+        creds: &CodexCredentials,
+        base_url: &str,
+        previous: &Arc<CachedResetCredits>,
+    ) -> Option<Arc<CachedResetCredits>> {
+        let cache_key = self.reset_credits_cache_key(creds, base_url);
+        let slot = Self::reset_credits_cache_slot(cache_key);
+        let mut state = slot.lock().await;
+
+        // A concurrent confirmation may already have replaced the observation
+        // that triggered this refresh. Reuse that newer result as one flight.
+        if let Some(cached) = state.observation.as_ref()
+            && !Arc::ptr_eq(cached, previous)
+        {
+            return cached.value.as_ref().map(|_| Arc::clone(cached));
+        }
+        if state
+            .confirmation_failure_at
+            .is_some_and(|failed_at| failed_at.elapsed() < RESET_CREDITS_CACHE_TTL)
+        {
+            return None;
+        }
+
+        let value = match self.fetch_rate_limit_reset_credits(creds, base_url).await {
+            Ok(credits) => credits,
+            Err(_) => {
+                state.confirmation_failure_at = Some(Instant::now());
+                tracing::debug!(
+                    cache_seconds = RESET_CREDITS_CACHE_TTL.as_secs(),
+                    "Codex reset credits confirmation unavailable; keeping cached observation"
+                );
+                return None;
+            }
+        };
+        let refreshed = Arc::new(CachedResetCredits {
+            loaded_at: Instant::now(),
+            value: Some(value),
+        });
+        state.observation = Some(Arc::clone(&refreshed));
+        state.confirmation_failure_at = None;
+        Some(refreshed)
+    }
+
+    async fn initial_reset_credit_evidence_observation(
+        &self,
+        creds: &CodexCredentials,
+        base_url: &str,
+        first: &Arc<CachedResetCredits>,
+        fetch_started: Instant,
+    ) -> Option<Arc<CachedResetCredits>> {
+        first.value.as_ref()?;
+        if first.loaded_at >= fetch_started {
+            return Some(Arc::clone(first));
+        }
+        self.refresh_rate_limit_reset_credits_after(creds, base_url, first)
+            .await
+    }
+
+    async fn load_reset_credits_observation(
+        &self,
+        creds: &CodexCredentials,
+        base_url: &str,
+    ) -> Arc<CachedResetCredits> {
+        let value = match self.fetch_rate_limit_reset_credits(creds, base_url).await {
+            Ok(credits) => Some(credits),
+            Err(_) => {
+                tracing::debug!(
+                    cache_seconds = RESET_CREDITS_CACHE_TTL.as_secs(),
+                    "Codex reset credits unavailable; caching unavailable state"
+                );
+                None
+            }
+        };
+        Arc::new(CachedResetCredits {
+            loaded_at: Instant::now(),
+            value,
+        })
+    }
+
+    fn reset_credits_cache_key(&self, creds: &CodexCredentials, base_url: &str) -> String {
+        let auth_path = self.get_auth_path();
+        let account_scope = weekly_reset::scope_key(creds.account_id.as_deref(), &auth_path);
+        let auth_path_scope = weekly_reset::scope_key(None, &auth_path);
+        let credential_scope = weekly_reset::scope_key(Some(&creds.access_token), &auth_path);
+        format!(
+            "{}|{account_scope}|{auth_path_scope}|{credential_scope}",
+            base_url.trim_end_matches('/')
+        )
+    }
+
+    #[cfg(test)]
+    fn reset_credit_observations_are_independent(
+        first: &Arc<CachedResetCredits>,
+        confirmation: &Arc<CachedResetCredits>,
+    ) -> bool {
+        !Arc::ptr_eq(first, confirmation)
+    }
+
+    fn reset_credits_cache_slot(key: String) -> ResetCreditsCacheSlot {
+        let cache = RESET_CREDITS_CACHE.get_or_init(|| Mutex::new(HashMap::new()));
+        let mut cache = cache
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner());
+        cache
+            .entry(key)
+            .or_insert_with(|| Arc::new(AsyncMutex::new(ResetCreditsCacheState::default())))
+            .clone()
     }
 
     async fn fetch_rate_limit_reset_credits(
@@ -992,6 +1179,17 @@ struct CachedCodexCredentials {
     credentials: CodexCredentials,
 }
 
+struct CachedResetCredits {
+    loaded_at: Instant,
+    value: Option<ResetCredits>,
+}
+
+#[derive(Default)]
+struct ResetCreditsCacheState {
+    observation: Option<Arc<CachedResetCredits>>,
+    confirmation_failure_at: Option<Instant>,
+}
+
 #[derive(Debug, Deserialize)]
 struct UsageResponse {
     plan_type: Option<String>,
@@ -1050,7 +1248,6 @@ pub(super) struct ResetCredit {
 pub(super) struct ResetCredits {
     #[serde(default)]
     pub(super) credits: Vec<ResetCredit>,
-    #[serde(default)]
     pub(super) available_count: u32,
 }
 
@@ -1093,6 +1290,26 @@ fn reset_credits_rate_window(reset: &ResetCredits, now: DateTime<Utc>) -> RateWi
     let mut window = RateWindow::informational(description);
     window.resets_at = next_available_reset_credit_expiry(&reset.credits, now);
     window
+}
+
+fn apply_reset_credits_window(
+    mut usage: UsageSnapshot,
+    reset_credits: Option<&ResetCredits>,
+) -> UsageSnapshot {
+    usage
+        .extra_rate_windows
+        .retain(|window| window.id != "reset-credits");
+    if let Some(reset_credits) = reset_credits
+        && reset_credits.available_count > 0
+    {
+        let window = reset_credits_rate_window(reset_credits, Utc::now());
+        usage.extra_rate_windows.push(NamedRateWindow::new(
+            "reset-credits",
+            "Reset credits",
+            window,
+        ));
+    }
+    usage
 }
 
 impl CreditDetails {
@@ -1384,6 +1601,12 @@ mod tests {
     }
 
     #[test]
+    fn reset_credits_require_available_count() {
+        let error = decode_reset_credits(br#"{"credits":[]}"#).expect_err("missing count");
+        assert!(error.to_string().contains("available_count"));
+    }
+
+    #[test]
     fn next_expiry_picks_soonest_available() {
         let now = DateTime::parse_from_rfc3339("2026-07-01T00:00:00Z")
             .unwrap()
@@ -1562,10 +1785,14 @@ mod tests {
 
         let home = write_codex_home(&server.url());
         let api = CodexApi::new().with_codex_home(home.path());
-        let (usage, _) = api.fetch_usage().await.expect("fetch_usage");
+        let (usage, _, reset_credits_available) = api
+            .fetch_usage_with_reset_credits()
+            .await
+            .expect("fetch_usage");
 
         usage_mock.assert_async().await;
         reset_mock.assert_async().await;
+        assert_eq!(reset_credits_available, Some(2));
 
         let extra = usage
             .extra_rate_windows
@@ -1620,6 +1847,7 @@ mod tests {
 
         let usage_mock = server
             .mock("GET", "/wham/usage")
+            .expect(2)
             .with_status(200)
             .with_header("content-type", "application/json")
             .with_body(
@@ -1630,6 +1858,7 @@ mod tests {
 
         let reset_mock = server
             .mock("GET", "/wham/rate-limit-reset-credits")
+            .expect(1)
             .with_status(200)
             .with_header("content-type", "application/json")
             .with_body(r#"{"available_count":0,"credits":[]}"#)
@@ -1638,10 +1867,19 @@ mod tests {
 
         let home = write_codex_home(&server.url());
         let api = CodexApi::new().with_codex_home(home.path());
-        let (usage, _) = api.fetch_usage().await.expect("fetch_usage");
+        let (usage, _, reset_credits_available) = api
+            .fetch_usage_with_reset_credits()
+            .await
+            .expect("fetch_usage");
+        let (_, _, cached_reset_credits_available) = api
+            .fetch_usage_with_reset_credits()
+            .await
+            .expect("cached fetch_usage");
 
         usage_mock.assert_async().await;
         reset_mock.assert_async().await;
+        assert_eq!(reset_credits_available, Some(0));
+        assert_eq!(cached_reset_credits_available, Some(0));
 
         assert!(
             usage
@@ -1650,6 +1888,323 @@ mod tests {
                 .all(|w| w.id != "reset-credits"),
             "available_count=0 must not attach reset-credits"
         );
+    }
+
+    #[tokio::test]
+    async fn reset_credits_unavailable_state_is_cached() {
+        let mut server = mockito::Server::new_async().await;
+        let usage_mock = server
+            .mock("GET", "/wham/usage")
+            .expect(2)
+            .with_status(200)
+            .with_header("content-type", "application/json")
+            .with_body(
+                r#"{"plan_type":"plus","rate_limit":{"primary_window":{"used_percent":10,"limit_window_seconds":18000}}}"#,
+            )
+            .create_async()
+            .await;
+        let reset_mock = server
+            .mock("GET", "/wham/rate-limit-reset-credits")
+            .expect(1)
+            .with_status(503)
+            .create_async()
+            .await;
+
+        let home = write_codex_home(&server.url());
+        let api = CodexApi::new().with_codex_home(home.path());
+        let (_, _, first) = api
+            .fetch_usage_with_reset_credits()
+            .await
+            .expect("first fetch_usage");
+        let (_, _, second) = api
+            .fetch_usage_with_reset_credits()
+            .await
+            .expect("cached fetch_usage");
+
+        usage_mock.assert_async().await;
+        reset_mock.assert_async().await;
+        assert_eq!(first, None);
+        assert_eq!(second, None);
+    }
+
+    #[tokio::test]
+    async fn reset_credits_cache_is_single_flight_and_one_observation() {
+        let mut server = mockito::Server::new_async().await;
+        let reset_mock = server
+            .mock("GET", "/wham/rate-limit-reset-credits")
+            .expect(1)
+            .with_status(200)
+            .with_header("content-type", "application/json")
+            .with_body(r#"{"available_count":2,"credits":[]}"#)
+            .create_async()
+            .await;
+
+        let home = write_codex_home(&server.url());
+        let api = CodexApi::new().with_codex_home(home.path());
+        let creds = api.load_credentials().expect("credentials");
+        let base_url = api.resolve_base_url();
+        let (first, second) = tokio::join!(
+            api.fetch_rate_limit_reset_credits_cached(&creds, &base_url),
+            api.fetch_rate_limit_reset_credits_cached(&creds, &base_url),
+        );
+
+        reset_mock.assert_async().await;
+        assert!(Arc::ptr_eq(&first, &second));
+        assert!(!CodexApi::reset_credit_observations_are_independent(
+            &first, &second
+        ));
+    }
+
+    #[tokio::test]
+    async fn reset_credits_confirmation_refresh_bypasses_cached_observation() {
+        let mut server = mockito::Server::new_async().await;
+        let first_mock = server
+            .mock("GET", "/wham/rate-limit-reset-credits")
+            .expect(1)
+            .with_status(200)
+            .with_header("content-type", "application/json")
+            .with_body(r#"{"available_count":2,"credits":[]}"#)
+            .create_async()
+            .await;
+
+        let home = write_codex_home(&server.url());
+        let api = CodexApi::new().with_codex_home(home.path());
+        let creds = api.load_credentials().expect("credentials");
+        let base_url = server.url();
+        let first = api
+            .fetch_rate_limit_reset_credits_cached(&creds, &base_url)
+            .await;
+        first_mock.assert_async().await;
+        first_mock.remove_async().await;
+
+        let second_mock = server
+            .mock("GET", "/wham/rate-limit-reset-credits")
+            .expect(1)
+            .with_status(200)
+            .with_header("content-type", "application/json")
+            .with_body(r#"{"available_count":1,"credits":[]}"#)
+            .create_async()
+            .await;
+        let refreshed = api
+            .refresh_rate_limit_reset_credits_after(&creds, &base_url, &first)
+            .await
+            .expect("fresh confirmation observation");
+        let cached = api
+            .fetch_rate_limit_reset_credits_cached(&creds, &base_url)
+            .await;
+
+        second_mock.assert_async().await;
+        assert_eq!(
+            first.value.as_ref().map(|value| value.available_count),
+            Some(2)
+        );
+        assert_eq!(
+            refreshed.value.as_ref().map(|value| value.available_count),
+            Some(1)
+        );
+        assert!(CodexApi::reset_credit_observations_are_independent(
+            &first, &refreshed
+        ));
+        assert!(Arc::ptr_eq(&refreshed, &cached));
+    }
+
+    #[tokio::test]
+    async fn stale_reset_credits_use_two_fresh_confirmation_observations() {
+        let mut server = mockito::Server::new_async().await;
+        let cached_mock = server
+            .mock("GET", "/wham/rate-limit-reset-credits")
+            .expect(1)
+            .with_status(200)
+            .with_header("content-type", "application/json")
+            .with_body(r#"{"available_count":2,"credits":[]}"#)
+            .create_async()
+            .await;
+
+        let home = write_codex_home(&server.url());
+        let api = CodexApi::new().with_codex_home(home.path());
+        let creds = api.load_credentials().expect("credentials");
+        let cached = api
+            .fetch_rate_limit_reset_credits_cached(&creds, &server.url())
+            .await;
+        cached_mock.assert_async().await;
+        cached_mock.remove_async().await;
+
+        let initial_mock = server
+            .mock("GET", "/wham/rate-limit-reset-credits")
+            .expect(1)
+            .with_status(200)
+            .with_header("content-type", "application/json")
+            .with_body(r#"{"available_count":1,"credits":[]}"#)
+            .create_async()
+            .await;
+        let initial = api
+            .initial_reset_credit_evidence_observation(
+                &creds,
+                &server.url(),
+                &cached,
+                Instant::now(),
+            )
+            .await
+            .expect("initial fresh observation");
+        initial_mock.assert_async().await;
+        initial_mock.remove_async().await;
+
+        let confirmation_mock = server
+            .mock("GET", "/wham/rate-limit-reset-credits")
+            .expect(1)
+            .with_status(200)
+            .with_header("content-type", "application/json")
+            .with_body(r#"{"available_count":1,"credits":[]}"#)
+            .create_async()
+            .await;
+        let confirmation = api
+            .refresh_rate_limit_reset_credits_after(&creds, &server.url(), &initial)
+            .await
+            .expect("confirmation fresh observation");
+
+        confirmation_mock.assert_async().await;
+        assert!(CodexApi::reset_credit_observations_are_independent(
+            &cached, &initial
+        ));
+        assert!(CodexApi::reset_credit_observations_are_independent(
+            &initial,
+            &confirmation
+        ));
+        assert_eq!(
+            confirmation
+                .value
+                .as_ref()
+                .map(|value| value.available_count),
+            Some(1)
+        );
+    }
+
+    #[tokio::test]
+    async fn cached_unavailable_reset_credits_are_not_retried_for_confirmation() {
+        let mut server = mockito::Server::new_async().await;
+        let reset_mock = server
+            .mock("GET", "/wham/rate-limit-reset-credits")
+            .expect(1)
+            .with_status(503)
+            .create_async()
+            .await;
+
+        let home = write_codex_home(&server.url());
+        let api = CodexApi::new().with_codex_home(home.path());
+        let creds = api.load_credentials().expect("credentials");
+        let unavailable = api
+            .fetch_rate_limit_reset_credits_cached(&creds, &server.url())
+            .await;
+        let confirmation = api
+            .initial_reset_credit_evidence_observation(
+                &creds,
+                &server.url(),
+                &unavailable,
+                Instant::now(),
+            )
+            .await;
+        let cached = api
+            .fetch_rate_limit_reset_credits_cached(&creds, &server.url())
+            .await;
+
+        reset_mock.assert_async().await;
+        assert!(confirmation.is_none());
+        assert!(Arc::ptr_eq(&unavailable, &cached));
+    }
+
+    #[tokio::test]
+    async fn reset_credits_confirmation_failure_is_cached_and_keeps_success() {
+        let mut server = mockito::Server::new_async().await;
+        let first_mock = server
+            .mock("GET", "/wham/rate-limit-reset-credits")
+            .expect(1)
+            .with_status(200)
+            .with_header("content-type", "application/json")
+            .with_body(r#"{"available_count":2,"credits":[]}"#)
+            .create_async()
+            .await;
+
+        let home = write_codex_home(&server.url());
+        let api = CodexApi::new().with_codex_home(home.path());
+        let creds = api.load_credentials().expect("credentials");
+        let base_url = server.url();
+        let first = api
+            .fetch_rate_limit_reset_credits_cached(&creds, &base_url)
+            .await;
+        first_mock.assert_async().await;
+        first_mock.remove_async().await;
+
+        let failure_mock = server
+            .mock("GET", "/wham/rate-limit-reset-credits")
+            .expect(1)
+            .with_status(503)
+            .create_async()
+            .await;
+        let (first_confirmation, second_confirmation) = tokio::join!(
+            api.refresh_rate_limit_reset_credits_after(&creds, &base_url, &first),
+            api.refresh_rate_limit_reset_credits_after(&creds, &base_url, &first),
+        );
+        let cached = api
+            .fetch_rate_limit_reset_credits_cached(&creds, &base_url)
+            .await;
+
+        failure_mock.assert_async().await;
+        assert!(first_confirmation.is_none());
+        assert!(second_confirmation.is_none());
+        assert!(Arc::ptr_eq(&first, &cached));
+        assert_eq!(
+            cached.value.as_ref().map(|value| value.available_count),
+            Some(2)
+        );
+    }
+
+    #[tokio::test]
+    async fn reset_credits_cache_refreshes_after_token_rotation() {
+        let mut server = mockito::Server::new_async().await;
+        let first_mock = server
+            .mock("GET", "/wham/rate-limit-reset-credits")
+            .match_header("authorization", "Bearer first-token")
+            .expect(1)
+            .with_status(200)
+            .with_header("content-type", "application/json")
+            .with_body(r#"{"available_count":2,"credits":[]}"#)
+            .create_async()
+            .await;
+        let second_mock = server
+            .mock("GET", "/wham/rate-limit-reset-credits")
+            .match_header("authorization", "Bearer second-token")
+            .expect(1)
+            .with_status(200)
+            .with_header("content-type", "application/json")
+            .with_body(r#"{"available_count":1,"credits":[]}"#)
+            .create_async()
+            .await;
+
+        let home = write_codex_home(&server.url());
+        let api = CodexApi::new().with_codex_home(home.path());
+        let mut creds = api.load_credentials().expect("credentials");
+        creds.access_token = "first-token".to_string();
+        let first = api
+            .fetch_rate_limit_reset_credits_cached(&creds, &server.url())
+            .await;
+        creds.access_token = "second-token".to_string();
+        let second = api
+            .fetch_rate_limit_reset_credits_cached(&creds, &server.url())
+            .await;
+
+        first_mock.assert_async().await;
+        second_mock.assert_async().await;
+        assert_eq!(
+            first.value.as_ref().map(|value| value.available_count),
+            Some(2)
+        );
+        assert_eq!(
+            second.value.as_ref().map(|value| value.available_count),
+            Some(1)
+        );
+        assert!(CodexApi::reset_credit_observations_are_independent(
+            &first, &second
+        ));
     }
 
     #[test]

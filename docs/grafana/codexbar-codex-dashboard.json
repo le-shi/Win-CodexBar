@@ -618,6 +618,85 @@
         "type": "prometheus",
         "uid": "${datasource}"
       },
+      "description": "当前可用的 Codex 限流重置卡数量。-1 表示 PAT 模式、接口不支持或查询失败；该接口结果缓存 10 分钟。",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "decimals": 0,
+          "mappings": [
+            {
+              "options": {
+                "-1": {
+                  "color": "orange",
+                  "text": "无法获取"
+                }
+              },
+              "type": "value"
+            }
+          ],
+          "min": -1,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "orange",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 0
+              },
+              {
+                "color": "green",
+                "value": 1
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 7,
+        "w": 6,
+        "x": 0,
+        "y": 12
+      },
+      "id": 17,
+      "options": {
+        "colorMode": "background",
+        "graphMode": "none",
+        "justifyMode": "auto",
+        "orientation": "horizontal",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "textMode": "auto",
+        "wideLayout": true
+      },
+      "targets": [
+        {
+          "editorMode": "code",
+          "expr": "codexbar_reset_credits_available{monitor=\"codexbar-codex\",job=~\"${job:regex}\",instance=~\"${instance:regex}\",provider=\"codex\"}",
+          "instant": true,
+          "legendFormat": "{{instance}}",
+          "range": false,
+          "refId": "A"
+        }
+      ],
+      "title": "Codex 可用重置卡",
+      "type": "stat"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${datasource}"
+      },
       "description": "各额度窗口距离下一次重置的剩余时间；导出器不输出缺少重置时间的窗口。",
       "fieldConfig": {
         "defaults": {
@@ -648,8 +727,8 @@
       },
       "gridPos": {
         "h": 7,
-        "w": 8,
-        "x": 0,
+        "w": 6,
+        "x": 6,
         "y": 12
       },
       "id": 9,
@@ -732,8 +811,8 @@
       },
       "gridPos": {
         "h": 7,
-        "w": 8,
-        "x": 8,
+        "w": 6,
+        "x": 12,
         "y": 12
       },
       "id": 10,
@@ -843,8 +922,8 @@
       },
       "gridPos": {
         "h": 7,
-        "w": 8,
-        "x": 16,
+        "w": 6,
+        "x": 18,
         "y": 12
       },
       "id": 11,
@@ -1202,7 +1281,7 @@
   "timezone": "browser",
   "title": "Win-CodexBar / Codex 监控",
   "uid": "win-codexbar-codex",
-  "version": 5,
+  "version": 6,
   "weekStart": "",
-  "description": "Win-CodexBar Codex 配额、数据新鲜度、采集健康、重置时间与本地估算成本监控；目标通过 monitor=\"codexbar-codex\" 标签识别。"
+  "description": "Win-CodexBar Codex 配额、重置卡、数据新鲜度、采集健康、重置时间与本地估算成本监控；目标通过 monitor=\"codexbar-codex\" 标签识别。"
 }

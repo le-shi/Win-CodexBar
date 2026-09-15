@@ -550,6 +550,10 @@ pub struct ProviderFetchResult {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub wayfinder_usage: Option<WayfinderUsageSnapshot>,
 
+    /// Available Codex rate-limit reset credits. None means unavailable or unsupported.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub reset_credits_available: Option<u32>,
+
     /// Label describing the data source (e.g., "oauth", "web", "cli")
     pub source_label: String,
 
@@ -573,6 +577,7 @@ impl ProviderFetchResult {
             usage,
             cost: None,
             wayfinder_usage: None,
+            reset_credits_available: None,
             source_label: source_label.into(),
             has_successful_claude_cli_quota: false,
             pace_authoritative: true,

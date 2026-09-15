@@ -120,6 +120,32 @@ groups:
           summary: "Codex 配额窗口数据缺失"
           description: "{{ $labels.instance }} 的 Codex 采集状态正常且数据新鲜，但连续 15 分钟没有任何可监控的配额窗口。"
 
+      - alert: CodexResetCreditsExhausted
+        expr: |
+          (codexbar_reset_credits_available{monitor="codexbar-codex",provider="codex"} == 0)
+          and on (job, instance, provider)
+          (codexbar:codex_provider_data_fresh{monitor="codexbar-codex",provider="codex"} == 1)
+        for: 5m
+        labels:
+          severity: warning
+          service: win-codexbar
+        annotations:
+          summary: "Codex 重置卡已用完"
+          description: "{{ $labels.instance }} 当前没有可用的 Codex 限流重置卡。"
+
+      - alert: CodexResetCreditsUnavailable
+        expr: |
+          (codexbar:codex_provider_data_fresh{monitor="codexbar-codex",provider="codex"} == 1)
+          unless on (job, instance, provider)
+          (codexbar_reset_credits_available{monitor="codexbar-codex",provider="codex"} >= 0)
+        for: 10m
+        labels:
+          severity: warning
+          service: win-codexbar
+        annotations:
+          summary: "Codex 重置卡数量无法获取"
+          description: "{{ $labels.instance }} 连续 10 分钟缺少 Codex 重置卡指标或指标值为 -1；可能仍在运行旧版、处于 PAT 模式、接口不支持或查询失败。接口结果缓存 10 分钟。"
+
       - alert: CodexQuotaRemainingLow
         expr: |
           (

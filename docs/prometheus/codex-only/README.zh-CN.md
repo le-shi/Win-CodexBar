@@ -12,9 +12,11 @@ setup-codex-only.cmd
 start-codex-metrics.cmd
 ```
 
+请用已经执行过 `codex login` 的同一个普通 Windows 用户运行这三个 CMD；Codex OAuth、CodexBar 配置和缓存都位于当前用户目录。只有后面的 Windows 防火墙命令需要管理员 PowerShell。
+
 `setup-codex-only.cmd` 会完成以下操作：
 
-- 下载并校验包含 `--metrics` 的 `codexbar-cli.exe`。
+- 下载固定版本的 `codexbar-cli.exe.sha256` 并严格解析哈希；本地 EXE 不匹配时才下载同版本 EXE，校验通过后再替换。
 - 在共享 CodexBar 配置中只保留 Codex provider；桌面版也会读取这份配置。
 - 生成 64 位十六进制 Bearer Token，并限制 Token 文件 ACL。
 
@@ -34,7 +36,7 @@ set CODEXBAR_PORT=8081
 test-codex-metrics.cmd
 ```
 
-测试脚本会要求 `codexbar_up` 为 1、Codex 已启用，并拒绝任何非 `codex` 的 provider 指标。启动后如果桌面端修改了共享 provider 配置，请重新运行测试脚本；Prometheus 示例中的 `metric_relabel_configs` 仍会丢弃所有非 Codex provider 序列。
+测试脚本会要求 `codexbar_up` 为 1、Codex 已启用、`codexbar_reset_credits_available{provider="codex"}` 存在且值为 `-1` 或非负整数，并拒绝任何非 `codex` 的 provider 指标。启动后如果桌面端修改了共享 provider 配置，请重新运行测试脚本；Prometheus 示例中的 `metric_relabel_configs` 仍会丢弃所有非 Codex provider 序列。
 
 在管理员 PowerShell 中只允许 Prometheus 服务器访问端口：
 
@@ -49,6 +51,8 @@ New-NetFirewallRule `
   -RemoteAddress '<PROMETHEUS_SERVER_IP>' `
   -Profile Domain,Private
 ```
+
+该命令只新增一条限定来源地址的 Allow 规则。要确保端口确实“只允许 Prometheus”，还需确认当前 Domain/Private 配置文件的默认入站动作为 Block，并且没有其他覆盖 TCP 8081 或该程序的更宽泛入站 Allow 规则。
 
 ## 2. Prometheus
 
@@ -83,9 +87,14 @@ promtool check config /etc/prometheus/prometheus.yml
 up{monitor="codexbar-codex"}
 codexbar_provider_up{monitor="codexbar-codex",provider="codex"}
 codexbar_quota_remaining_percent{monitor="codexbar-codex",provider="codex"}
+codexbar_reset_credits_available{monitor="codexbar-codex",provider="codex"}
 ```
 
-告警阈值为：剩余 `5% < quota <= 20%` 时 warning，剩余 `quota <= 5%` 时 critical。采集正常但连续 15 分钟没有任何配额窗口时也会 warning，防止接口字段变化造成静默失明。规则覆盖 Codex 的 session、weekly、model、tertiary 和附加动态窗口；如只关注主订阅窗口，可在额度规则中增加 `window=~"session|weekly"`。
+`codexbar_reset_credits_available` 的值为非负整数时，表示当前可用重置卡张数，其中 `0` 表示已经用完；值为 `-1` 时，表示 PAT 模式、接口不支持或本次查询失败，不能当作真实张数参与 `min()`、`avg()` 等聚合。需要统计张数时先用 `codexbar_reset_credits_available >= 0` 过滤未知值。
+
+Win-CodexBar 会把 `/wham/rate-limit-reset-credits` 的查询结果缓存 10 分钟，成功结果和“无法获取”状态都会缓存。在同一账号和认证范围内，常规刷新即使比 Prometheus 抓取更频繁，重置卡接口通常也只会每 10 分钟重新查询一次。检测到可疑的周额度重置时会绕过常规缓存取得独立库存观察，用于避免把旧缓存当成消费重置卡的证据。
+
+告警阈值为：重置卡数量等于 `0` 持续 5 分钟时 warning；采集数据新鲜但重置卡指标缺失或值小于 `0` 持续 10 分钟时单独 warning；剩余 `5% < quota <= 20%` 时 warning，剩余 `quota <= 5%` 时 critical。采集正常但连续 15 分钟没有任何配额窗口时也会 warning，防止接口字段变化造成静默失明。规则覆盖 Codex 的 session、weekly、model、tertiary 和附加动态窗口；如只关注主订阅窗口，可在额度规则中增加 `window=~"session|weekly"`。
 
 ## 3. Grafana
 
@@ -96,6 +105,6 @@ codexbar_quota_remaining_percent{monitor="codexbar-codex",provider="codex"}
 3. 在 `Prometheus` 变量中选择数据源。
 4. 面板界面已中文化；“采集任务”和“节点”默认选择“全部”，“额度窗口”默认选择 `weekly`，也可以切换为其他窗口或“全部”。示例 job 名为 `codex-bar`，也可以使用其他名称。
 
-Dashboard 固定使用 `provider="codex"`，不会展示其他 provider。当前值和历史图统一展示剩余额度。它不包含多账号面板，因为 Codex 当前不生成对应指标。Codex 成本面板显示本地会话日志估算，不是订阅账单。
+Dashboard 固定使用 `provider="codex"`，不会展示其他 provider。当前值和历史图统一展示剩余额度，“Codex 可用重置卡”面板显示实际张数，并把 `-1` 映射为“无法获取”。它不包含多账号面板，因为 Codex 当前不生成对应指标。Codex 成本面板显示本地会话日志估算，不是订阅账单。
 
 初始化与启动脚本会确保 `/metrics` 启动时只有 Codex provider；Prometheus 的抓取过滤、告警规则和 Dashboard 则持续只使用 Codex 数据。相同 HTTP 服务上的 `/usage`、`/cost`、`/dashboard/v1/snapshot` 等数据路由受同一个 Bearer Token 保护；`/health` 只公开版本和状态。防火墙仍应只允许 Prometheus 服务器访问。

@@ -84,6 +84,10 @@ const METRIC_DEFINITIONS: &[(&str, &str)] = &[
         "codexbar_quota_idle",
         "Whether a provider quota window is idle.",
     ),
+    (
+        "codexbar_reset_credits_available",
+        "Available Codex rate-limit reset credits; -1 means unavailable or unsupported.",
+    ),
     ("codexbar_credits_remaining", "Remaining provider credits."),
     (
         "codexbar_cost_today_usd",
@@ -263,6 +267,16 @@ fn render_at(snapshot: &SnapshotPayload, now: DateTime<Utc>) -> String {
         for window in &provider.windows {
             render_provider_window(&mut writer, &provider.id, window);
         }
+        if provider.id == "codex" {
+            writer.sample(
+                "codexbar_reset_credits_available",
+                &provider_labels,
+                provider
+                    .reset_credits_available
+                    .map(i64::from)
+                    .unwrap_or(-1),
+            );
+        }
         if let Some(credits) = &provider.credits {
             writer.sample_f64(
                 "codexbar_credits_remaining",
@@ -307,6 +321,11 @@ fn render_at(snapshot: &SnapshotPayload, now: DateTime<Utc>) -> String {
 fn render_unavailable() -> String {
     let mut writer = MetricsWriter::new();
     writer.sample("codexbar_up", &[], 0);
+    writer.sample(
+        "codexbar_reset_credits_available",
+        &[("provider", "codex")],
+        -1,
+    );
     writer.finish()
 }
 
@@ -601,6 +620,7 @@ mod tests {
                 plan: Some("Sensitive plan".to_string()),
             }),
             windows: vec![window("session", 25.0, Some(at(3)))],
+            reset_credits_available: Some(3),
             credits: Some(CreditsPayload {
                 remaining: 42.5,
                 unit: "credits".to_string(),
@@ -716,6 +736,7 @@ mod tests {
         assert!(
             body.contains("codexbar_credits_remaining{provider=\"codex\",unit=\"credits\"} 42.5\n")
         );
+        assert!(body.contains("codexbar_reset_credits_available{provider=\"codex\"} 3\n"));
         assert!(body.contains("codexbar_cost_last_30_days_usd{provider=\"codex\"} 12.5\n"));
         assert!(
             body.contains("codexbar_account_active{account=\"account-1\",provider=\"codex\"} 1\n")
@@ -748,6 +769,10 @@ mod tests {
 
         assert_metric_families_are_contiguous(&body);
         assert_eq!(samples(&body, "codexbar_provider_enabled").count(), 2);
+        assert_eq!(
+            samples(&body, "codexbar_reset_credits_available").count(),
+            1
+        );
         assert!(body.contains(concat!(
             "# HELP codexbar_provider_enabled Whether the provider is enabled.\n",
             "# TYPE codexbar_provider_enabled gauge\n",
@@ -761,6 +786,7 @@ mod tests {
         let mut provider = provider();
         provider.updated_at = None;
         provider.status = None;
+        provider.reset_credits_available = None;
         provider.credits = None;
         provider.cost = None;
         provider.accounts = None;
@@ -786,6 +812,18 @@ mod tests {
                 "unexpected {metric} sample"
             );
         }
+    }
+
+    #[test]
+    fn distinguishes_exhausted_and_unavailable_codex_reset_credits() {
+        let mut provider = provider();
+        provider.reset_credits_available = Some(0);
+        let exhausted = render(&snapshot(vec![provider.clone()]));
+        assert!(exhausted.contains("codexbar_reset_credits_available{provider=\"codex\"} 0\n"));
+
+        provider.reset_credits_available = None;
+        let unavailable = render(&snapshot(vec![provider]));
+        assert!(unavailable.contains("codexbar_reset_credits_available{provider=\"codex\"} -1\n"));
     }
 
     #[test]
@@ -918,12 +956,13 @@ mod tests {
         assert!(response.starts_with("HTTP/1.1 200 OK\r\n"));
         assert!(response.contains(&format!("Content-Type: {CONTENT_TYPE}\r\n")));
         assert!(response.contains("codexbar_up 0\n"));
+        assert!(response.contains("codexbar_reset_credits_available{provider=\"codex\"} -1\n"));
         assert_eq!(
             response
                 .lines()
                 .filter(|line| line.starts_with("codexbar_"))
                 .count(),
-            1
+            2
         );
         assert!(!response.contains("sensitive snapshot failure"));
     }

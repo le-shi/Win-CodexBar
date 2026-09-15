@@ -89,7 +89,7 @@ Typical endpoints: `/health`, `/usage`, `/cost` (and dashboard snapshot routes w
 
 #### Prometheus metrics
 
-Download `codexbar-cli.exe` or `CodexBarCLI-metrics-v0.56.8-r2-windows-x64.zip` from the dedicated [`metrics-v0.56.8-r2` release](https://github.com/le-shi/Win-CodexBar/releases/tag/metrics-v0.56.8-r2). The standard `Finesssee/Win-CodexBar` v0.56.8 CLI does not contain `--metrics`. A source build of this branch also works after copying `target\release\codexbar.exe` to `codexbar-cli.exe`. Confirm the selected binary before deployment:
+Download `codexbar-cli.exe` or `CodexBarCLI-metrics-v0.56.8-r3-windows-x64.zip` from the dedicated [`metrics-v0.56.8-r3` release](https://github.com/le-shi/Win-CodexBar/releases/tag/metrics-v0.56.8-r3). The standard `Finesssee/Win-CodexBar` v0.56.8 CLI does not contain `--metrics`. A source build of this branch also works after copying `target\release\codexbar.exe` to `codexbar-cli.exe`. Confirm the selected binary before deployment:
 
 ```powershell
 .\codexbar-cli.exe serve --help | Select-String -SimpleMatch '--metrics'
@@ -325,6 +325,7 @@ The query should return `1`. Useful metric families include:
 | `codexbar_provider_enabled`, `codexbar_provider_up`, `codexbar_provider_error_code` | Provider enablement and collection state |
 | `codexbar_provider_updated_timestamp_seconds`, `codexbar_provider_data_age_seconds` | Provider data update time and data age |
 | `codexbar_quota_*{provider,window}` | Used/remaining percentage, reset timestamp, and idle state per quota window |
+| `codexbar_reset_credits_available{provider="codex"}` | Available Codex rate-limit reset credits; `0` means exhausted and `-1` means unavailable or unsupported. Normal refreshes cache the upstream result for ten minutes; suspicious weekly-quota resets may bypass the normal cache for independent inventory observations. |
 | `codexbar_cost_today_usd`, `codexbar_cost_last_30_days_usd` | Estimated cost when available |
 | `codexbar_account_*` | Per-account state, quota, reset, pace stage/delta, and exhaustion ETA when account snapshots are available |
 

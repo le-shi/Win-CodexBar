@@ -1,5 +1,18 @@
 # Changelog
 
+## [Windows] metrics-v0.56.8-r3 - 2026-09-15
+
+### Added
+- Prometheus exposes `codexbar_reset_credits_available{provider="codex"}` with distinct values for an available count, exhausted credits (`0`), and unavailable or unsupported data (`-1`).
+
+### Changed
+- Codex reset-credit inventory uses a ten-minute, account-scoped in-process cache with single-flight refreshes and credential-rotation invalidation.
+
+### Fixed
+- Missing `available_count` fields no longer look like exhausted credits. One cached inventory response cannot serve as both samples in weekly-reset confirmation, so suspicious weekly resets obtain independent inventory observations.
+
+---
+
 ## [Windows] metrics-v0.56.8-r2 - 2026-09-14
 
 ### Added

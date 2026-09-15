@@ -7,7 +7,7 @@ on:
   workflow_dispatch:
     inputs:
       tag:
-        description: 'Existing release tag (for example, metrics-v0.56.8-r2)'
+        description: 'Existing release tag (for example, metrics-v0.56.8-r3)'
         required: true
         type: string
 
@@ -279,8 +279,9 @@ jobs:
 
           - Enable the opt-in endpoint with `codexbar-cli serve --metrics`.
           - `/metrics` uses the same Bearer token and Host allowlist as the dashboard endpoints.
+          - `codexbar_reset_credits_available{provider="codex"}` reports the cached reset-credit count; `0` means exhausted and `-1` means unavailable or unsupported. Normal refreshes use a ten-minute cache; suspicious weekly resets may bypass it for independent inventory observations.
           - Prometheus setup is documented in `docs/CLI.md`.
-          - The importable Grafana dashboard is `docs/grafana/codexbar-dashboard.json`.
+          - The Codex-only monitoring kit and importable Grafana dashboard are under `docs/prometheus/codex-only` and `docs/grafana/codexbar-codex-dashboard.json`.
           EOF
 
           created_release_id=''
@@ -387,7 +388,7 @@ jobs:
           gh release edit "$RELEASE_TAG" \
             --repo "$GITHUB_REPOSITORY" \
             --draft=false \
-            --latest=false
+            --latest=true
 
           release_is_draft="$(
             gh api "repos/${GITHUB_REPOSITORY}/releases/tags/${RELEASE_TAG}" \
