@@ -10,7 +10,7 @@
         "enable": true,
         "hide": true,
         "iconColor": "rgba(0, 211, 255, 1)",
-        "name": "Annotations & Alerts",
+        "name": "注释与告警",
         "type": "dashboard"
       }
     ]
@@ -27,7 +27,7 @@
         "type": "prometheus",
         "uid": "${datasource}"
       },
-      "description": "Prometheus can reach the Win-CodexBar target.",
+      "description": "Prometheus 是否能够访问 Win-CodexBar 节点。",
       "fieldConfig": {
         "defaults": {
           "color": {
@@ -38,11 +38,11 @@
               "options": {
                 "0": {
                   "color": "red",
-                  "text": "Down"
+                  "text": "不可达"
                 },
                 "1": {
                   "color": "green",
-                  "text": "Reachable"
+                  "text": "可访问"
                 }
               },
               "type": "value"
@@ -91,12 +91,12 @@
           "editorMode": "code",
           "expr": "min(up{monitor=\"codexbar-codex\",job=~\"${job:regex}\",instance=~\"${instance:regex}\"})",
           "instant": true,
-          "legendFormat": "scrape",
+          "legendFormat": "抓取",
           "range": false,
           "refId": "A"
         }
       ],
-      "title": "Prometheus Scrape",
+      "title": "Prometheus 抓取状态",
       "type": "stat"
     },
     {
@@ -104,7 +104,7 @@
         "type": "prometheus",
         "uid": "${datasource}"
       },
-      "description": "Whether Win-CodexBar produced the snapshot used for this scrape.",
+      "description": "Win-CodexBar 是否成功生成本次抓取使用的指标快照。",
       "fieldConfig": {
         "defaults": {
           "color": {
@@ -115,11 +115,11 @@
               "options": {
                 "0": {
                   "color": "red",
-                  "text": "Unavailable"
+                  "text": "不可用"
                 },
                 "1": {
                   "color": "green",
-                  "text": "Ready"
+                  "text": "就绪"
                 }
               },
               "type": "value"
@@ -168,12 +168,12 @@
           "editorMode": "code",
           "expr": "min(codexbar_up{monitor=\"codexbar-codex\",job=~\"${job:regex}\",instance=~\"${instance:regex}\"})",
           "instant": true,
-          "legendFormat": "snapshot",
+          "legendFormat": "快照",
           "range": false,
           "refId": "A"
         }
       ],
-      "title": "Snapshot Build",
+      "title": "快照生成状态",
       "type": "stat"
     },
     {
@@ -181,7 +181,7 @@
         "type": "prometheus",
         "uid": "${datasource}"
       },
-      "description": "Seconds since Win-CodexBar generated the exported dashboard snapshot.",
+      "description": "距离 Win-CodexBar 生成当前指标快照已过去的秒数。",
       "fieldConfig": {
         "defaults": {
           "color": {
@@ -235,12 +235,12 @@
           "editorMode": "code",
           "expr": "max(codexbar_snapshot_age_seconds{monitor=\"codexbar-codex\",job=~\"${job:regex}\",instance=~\"${instance:regex}\"})",
           "instant": true,
-          "legendFormat": "age",
+          "legendFormat": "快照距今时间",
           "range": false,
           "refId": "A"
         }
       ],
-      "title": "Snapshot Age",
+      "title": "快照距今时间",
       "type": "stat"
     },
     {
@@ -248,7 +248,7 @@
         "type": "prometheus",
         "uid": "${datasource}"
       },
-      "description": "Whether the exported snapshot is older than the published stale threshold.",
+      "description": "当前指标快照是否超过导出器公布的过期阈值。",
       "fieldConfig": {
         "defaults": {
           "color": {
@@ -259,11 +259,11 @@
               "options": {
                 "0": {
                   "color": "green",
-                  "text": "Fresh"
+                  "text": "新鲜"
                 },
                 "1": {
                   "color": "red",
-                  "text": "Stale"
+                  "text": "已过期"
                 }
               },
               "type": "value"
@@ -312,12 +312,12 @@
           "editorMode": "code",
           "expr": "max(codexbar_snapshot_stale{monitor=\"codexbar-codex\",job=~\"${job:regex}\",instance=~\"${instance:regex}\"})",
           "instant": true,
-          "legendFormat": "stale",
+          "legendFormat": "过期状态",
           "range": false,
           "refId": "A"
         }
       ],
-      "title": "Snapshot Freshness",
+      "title": "快照新鲜度",
       "type": "stat"
     },
     {
@@ -325,7 +325,7 @@
         "type": "prometheus",
         "uid": "${datasource}"
       },
-      "description": "Percentage of selected Codex instances whose latest usage fetch succeeded.",
+      "description": "所选 Codex 节点中，最近一次用量采集成功的比例。",
       "fieldConfig": {
         "defaults": {
           "color": {
@@ -382,12 +382,12 @@
           "editorMode": "code",
           "expr": "100 * (sum(codexbar_provider_up{monitor=\"codexbar-codex\",job=~\"${job:regex}\",instance=~\"${instance:regex}\",provider=\"codex\"} * on(job, instance, provider) codexbar_provider_enabled{monitor=\"codexbar-codex\",job=~\"${job:regex}\",instance=~\"${instance:regex}\",provider=\"codex\"} * on(job, instance) group_left up{monitor=\"codexbar-codex\",job=~\"${job:regex}\",instance=~\"${instance:regex}\"} * on(job, instance) group_left codexbar_up{monitor=\"codexbar-codex\",job=~\"${job:regex}\",instance=~\"${instance:regex}\"}) or vector(0)) / clamp_min(count(up{monitor=\"codexbar-codex\",job=~\"${job:regex}\",instance=~\"${instance:regex}\"}), 1)",
           "instant": true,
-          "legendFormat": "healthy",
+          "legendFormat": "健康率",
           "range": false,
           "refId": "A"
         }
       ],
-      "title": "Codex Instances Healthy",
+      "title": "Codex 健康节点比例",
       "type": "stat"
     },
     {
@@ -395,7 +395,7 @@
         "type": "prometheus",
         "uid": "${datasource}"
       },
-      "description": "Dashboard refresh interval configured in Win-CodexBar.",
+      "description": "Win-CodexBar 配置的监控面板数据刷新间隔。",
       "fieldConfig": {
         "defaults": {
           "color": {
@@ -441,12 +441,12 @@
           "editorMode": "code",
           "expr": "max(codexbar_refresh_interval_seconds{monitor=\"codexbar-codex\",job=~\"${job:regex}\",instance=~\"${instance:regex}\"})",
           "instant": true,
-          "legendFormat": "refresh",
+          "legendFormat": "刷新间隔",
           "range": false,
           "refId": "A"
         }
       ],
-      "title": "Refresh Interval",
+      "title": "刷新间隔",
       "type": "stat"
     },
     {
@@ -454,7 +454,7 @@
         "type": "prometheus",
         "uid": "${datasource}"
       },
-      "description": "Current remaining Codex quota for each selected window.",
+      "description": "各个所选额度窗口当前剩余的 Codex 配额百分比。",
       "fieldConfig": {
         "defaults": {
           "color": {
@@ -472,11 +472,11 @@
               },
               {
                 "color": "yellow",
-                "value": 5
+                "value": 5.000001
               },
               {
                 "color": "green",
-                "value": 20
+                "value": 20.000001
               }
             ]
           },
@@ -519,7 +519,7 @@
           "refId": "A"
         }
       ],
-      "title": "Quota Remaining Now",
+      "title": "当前剩余额度",
       "type": "bargauge"
     },
     {
@@ -527,7 +527,7 @@
         "type": "prometheus",
         "uid": "${datasource}"
       },
-      "description": "Codex quota utilization history. Use the instance and window variables to narrow the series.",
+      "description": "Codex 剩余额度历史，可通过节点和额度窗口变量筛选。",
       "fieldConfig": {
         "defaults": {
           "color": {
@@ -603,21 +603,14 @@
       "targets": [
         {
           "editorMode": "code",
-          "expr": "codexbar_quota_used_percent{monitor=\"codexbar-codex\",job=~\"${job:regex}\",instance=~\"${instance:regex}\",provider=\"codex\",window=~\"${window:regex}\"}",
-          "legendFormat": "{{instance}} / {{window}} used",
-          "range": true,
-          "refId": "A"
-        },
-        {
-          "editorMode": "code",
           "expr": "codexbar_quota_remaining_percent{monitor=\"codexbar-codex\",job=~\"${job:regex}\",instance=~\"${instance:regex}\",provider=\"codex\",window=~\"${window:regex}\"}",
           "hide": false,
-          "legendFormat": "{{instance}} / {{window}} remaining",
+          "legendFormat": "{{instance}} / {{window}} 剩余",
           "range": true,
-          "refId": "B"
+          "refId": "A"
         }
       ],
-      "title": "Quota History",
+      "title": "剩余额度历史",
       "type": "timeseries"
     },
     {
@@ -625,7 +618,7 @@
         "type": "prometheus",
         "uid": "${datasource}"
       },
-      "description": "Remaining time until each quota window resets. Missing reset timestamps are omitted by the exporter.",
+      "description": "各额度窗口距离下一次重置的剩余时间；导出器不输出缺少重置时间的窗口。",
       "fieldConfig": {
         "defaults": {
           "color": {
@@ -685,7 +678,7 @@
           "refId": "A"
         }
       ],
-      "title": "Time Until Quota Reset",
+      "title": "距离额度重置",
       "type": "stat"
     },
     {
@@ -693,7 +686,7 @@
         "type": "prometheus",
         "uid": "${datasource}"
       },
-      "description": "Whether the latest Codex usage collection succeeded.",
+      "description": "最近一次 Codex 用量采集是否成功。",
       "fieldConfig": {
         "defaults": {
           "color": {
@@ -711,11 +704,11 @@
               "options": {
                 "0": {
                   "color": "red",
-                  "text": "Failed"
+                  "text": "失败"
                 },
                 "1": {
                   "color": "green",
-                  "text": "Healthy"
+                  "text": "正常"
                 }
               },
               "type": "value"
@@ -767,7 +760,7 @@
           "refId": "A"
         }
       ],
-      "title": "Codex Fetch Health",
+      "title": "Codex 采集状态",
       "transformations": [
         {
           "id": "organize",
@@ -784,9 +777,9 @@
               "Value": 2
             },
             "renameByName": {
-              "Value": "Fetch up",
-              "instance": "Instance",
-              "provider": "Provider"
+              "Value": "采集状态",
+              "instance": "节点",
+              "provider": "提供方"
             }
           }
         }
@@ -798,7 +791,7 @@
         "type": "prometheus",
         "uid": "${datasource}"
       },
-      "description": "Seconds since each Codex instance's usage data was updated.",
+      "description": "距离各 Codex 节点的用量数据最近一次更新已过去的秒数。",
       "fieldConfig": {
         "defaults": {
           "color": {
@@ -878,7 +871,7 @@
           "refId": "A"
         }
       ],
-      "title": "Codex Data Age",
+      "title": "Codex 数据距今时间",
       "type": "timeseries"
     },
     {
@@ -886,7 +879,7 @@
         "type": "prometheus",
         "uid": "${datasource}"
       },
-      "description": "Estimated Codex cost from local session logs. This is not the Codex subscription bill, and the series is omitted when no local cost estimate is available.",
+      "description": "根据本地会话日志估算的 Codex 成本；这不是 Codex 订阅账单，无可用估算时不会输出序列。",
       "fieldConfig": {
         "defaults": {
           "color": {
@@ -933,7 +926,7 @@
           "editorMode": "code",
           "expr": "codexbar_cost_today_usd{monitor=\"codexbar-codex\",job=~\"${job:regex}\",instance=~\"${instance:regex}\",provider=\"codex\"}",
           "instant": true,
-          "legendFormat": "{{instance}} today",
+          "legendFormat": "{{instance}} 今日",
           "range": false,
           "refId": "A"
         },
@@ -941,12 +934,12 @@
           "editorMode": "code",
           "expr": "codexbar_cost_last_30_days_usd{monitor=\"codexbar-codex\",job=~\"${job:regex}\",instance=~\"${instance:regex}\",provider=\"codex\"}",
           "instant": true,
-          "legendFormat": "{{instance}} last 30 days",
+          "legendFormat": "{{instance}} 近 30 天",
           "range": false,
           "refId": "B"
         }
       ],
-      "title": "Codex Estimated Local Cost",
+      "title": "Codex 本地估算成本",
       "type": "stat"
     },
     {
@@ -954,7 +947,7 @@
         "type": "prometheus",
         "uid": "${datasource}"
       },
-      "description": "Build identity and snapshot schema, generation time, and stale threshold.",
+      "description": "导出器构建版本、快照结构版本、生成时间和过期阈值。",
       "fieldConfig": {
         "defaults": {
           "custom": {
@@ -989,7 +982,7 @@
       "targets": [
         {
           "editorMode": "code",
-          "expr": "label_replace(codexbar_build_info{monitor=\"codexbar-codex\",job=~\"${job:regex}\",instance=~\"${instance:regex}\"}, \"metric\", \"codexbar_build_info\", \"\", \"\") or label_replace(codexbar_snapshot_schema_version{monitor=\"codexbar-codex\",job=~\"${job:regex}\",instance=~\"${instance:regex}\"}, \"metric\", \"codexbar_snapshot_schema_version\", \"\", \"\") or label_replace(codexbar_snapshot_generated_timestamp_seconds{monitor=\"codexbar-codex\",job=~\"${job:regex}\",instance=~\"${instance:regex}\"}, \"metric\", \"codexbar_snapshot_generated_timestamp_seconds\", \"\", \"\") or label_replace(codexbar_snapshot_stale_after_seconds{monitor=\"codexbar-codex\",job=~\"${job:regex}\",instance=~\"${instance:regex}\"}, \"metric\", \"codexbar_snapshot_stale_after_seconds\", \"\", \"\")",
+          "expr": "label_replace(codexbar_build_info{monitor=\"codexbar-codex\",job=~\"${job:regex}\",instance=~\"${instance:regex}\"}, \"metric\", \"构建信息\", \"\", \"\") or label_replace(codexbar_snapshot_schema_version{monitor=\"codexbar-codex\",job=~\"${job:regex}\",instance=~\"${instance:regex}\"}, \"metric\", \"快照结构版本\", \"\", \"\") or label_replace(codexbar_snapshot_generated_timestamp_seconds{monitor=\"codexbar-codex\",job=~\"${job:regex}\",instance=~\"${instance:regex}\"}, \"metric\", \"快照生成时间\", \"\", \"\") or label_replace(codexbar_snapshot_stale_after_seconds{monitor=\"codexbar-codex\",job=~\"${job:regex}\",instance=~\"${instance:regex}\"}, \"metric\", \"快照过期阈值\", \"\", \"\")",
           "instant": true,
           "legendFormat": "{{instance}} / {{metric}}",
           "range": false,
@@ -997,7 +990,7 @@
           "format": "table"
         }
       ],
-      "title": "Exporter Metadata",
+      "title": "导出器元数据",
       "transformations": [
         {
           "id": "organize",
@@ -1014,9 +1007,11 @@
               "Value": 2
             },
             "renameByName": {
-              "Value": "Value",
-              "instance": "Instance",
-              "metric": "Metric"
+              "Value": "值",
+              "instance": "节点",
+              "metric": "指标",
+              "version": "程序版本",
+              "schema_version": "指标结构版本"
             }
           }
         }
@@ -1028,7 +1023,7 @@
         "type": "prometheus",
         "uid": "${datasource}"
       },
-      "description": "Codex enablement, fetch result/error code, and provider update timestamp. Optional series appear only when their source fields exist.",
+      "description": "Codex 启用状态、采集结果、错误码和提供方更新时间；仅在源字段存在时显示可选序列。",
       "fieldConfig": {
         "defaults": {
           "custom": {
@@ -1063,7 +1058,7 @@
       "targets": [
         {
           "editorMode": "code",
-          "expr": "label_replace(codexbar_provider_enabled{monitor=\"codexbar-codex\",job=~\"${job:regex}\",instance=~\"${instance:regex}\",provider=\"codex\"}, \"metric\", \"codexbar_provider_enabled\", \"\", \"\") or label_replace(codexbar_provider_up{monitor=\"codexbar-codex\",job=~\"${job:regex}\",instance=~\"${instance:regex}\",provider=\"codex\"}, \"metric\", \"codexbar_provider_up\", \"\", \"\") or label_replace(codexbar_provider_error_code{monitor=\"codexbar-codex\",job=~\"${job:regex}\",instance=~\"${instance:regex}\",provider=\"codex\"}, \"metric\", \"codexbar_provider_error_code\", \"\", \"\") or label_replace(codexbar_provider_updated_timestamp_seconds{monitor=\"codexbar-codex\",job=~\"${job:regex}\",instance=~\"${instance:regex}\",provider=\"codex\"}, \"metric\", \"codexbar_provider_updated_timestamp_seconds\", \"\", \"\")",
+          "expr": "label_replace(codexbar_provider_enabled{monitor=\"codexbar-codex\",job=~\"${job:regex}\",instance=~\"${instance:regex}\",provider=\"codex\"}, \"metric\", \"是否启用\", \"\", \"\") or label_replace(codexbar_provider_up{monitor=\"codexbar-codex\",job=~\"${job:regex}\",instance=~\"${instance:regex}\",provider=\"codex\"}, \"metric\", \"采集状态\", \"\", \"\") or label_replace(codexbar_provider_error_code{monitor=\"codexbar-codex\",job=~\"${job:regex}\",instance=~\"${instance:regex}\",provider=\"codex\"}, \"metric\", \"错误码\", \"\", \"\") or label_replace(codexbar_provider_updated_timestamp_seconds{monitor=\"codexbar-codex\",job=~\"${job:regex}\",instance=~\"${instance:regex}\",provider=\"codex\"}, \"metric\", \"数据更新时间\", \"\", \"\")",
           "instant": true,
           "legendFormat": "{{instance}} / {{provider}} / {{metric}}",
           "range": false,
@@ -1071,7 +1066,7 @@
           "format": "table"
         }
       ],
-      "title": "Codex Collection Details",
+      "title": "Codex 采集详情",
       "transformations": [
         {
           "id": "organize",
@@ -1089,9 +1084,10 @@
               "Value": 3
             },
             "renameByName": {
-              "Value": "Value",
-              "instance": "Instance",
-              "metric": "Metric"
+              "Value": "值",
+              "instance": "节点",
+              "provider": "提供方",
+              "metric": "指标"
             }
           }
         }
@@ -1105,7 +1101,8 @@
     "win-codexbar",
     "codex",
     "prometheus",
-    "ai-usage"
+    "ai-usage",
+    "AI 用量"
   ],
   "templating": {
     "list": [
@@ -1113,7 +1110,7 @@
         "current": {},
         "hide": 0,
         "includeAll": false,
-        "label": "Prometheus",
+        "label": "Prometheus 数据源",
         "multi": false,
         "name": "datasource",
         "options": [],
@@ -1125,7 +1122,7 @@
       },
       {
         "current": {
-          "text": "All",
+          "text": "全部",
           "value": "$__all"
         },
         "datasource": {
@@ -1135,7 +1132,7 @@
         "definition": "label_values(up{monitor=\"codexbar-codex\"}, job)",
         "hide": 0,
         "includeAll": true,
-        "label": "Job",
+        "label": "采集任务",
         "multi": true,
         "name": "job",
         "options": [],
@@ -1150,7 +1147,7 @@
       {
         "allValue": ".*",
         "current": {
-          "text": "All",
+          "text": "全部",
           "value": "$__all"
         },
         "datasource": {
@@ -1160,7 +1157,7 @@
         "definition": "label_values(up{monitor=\"codexbar-codex\",job=~\"${job:regex}\"}, instance)",
         "hide": 0,
         "includeAll": true,
-        "label": "Instance",
+        "label": "节点",
         "multi": true,
         "name": "instance",
         "options": [],
@@ -1174,21 +1171,21 @@
       {
         "allValue": ".*",
         "current": {
-          "text": "All",
-          "value": "$__all"
+          "text": "每周",
+          "value": "weekly"
         },
         "datasource": {
           "type": "prometheus",
           "uid": "${datasource}"
         },
-        "definition": "label_values(codexbar_quota_used_percent{monitor=\"codexbar-codex\",provider=\"codex\",job=~\"${job:regex}\",instance=~\"${instance:regex}\"}, window)",
+        "definition": "label_values(codexbar_quota_remaining_percent{monitor=\"codexbar-codex\",provider=\"codex\",job=~\"${job:regex}\",instance=~\"${instance:regex}\"}, window)",
         "hide": 0,
         "includeAll": true,
-        "label": "Window",
+        "label": "额度窗口",
         "multi": true,
         "name": "window",
         "options": [],
-        "query": "label_values(codexbar_quota_used_percent{monitor=\"codexbar-codex\",provider=\"codex\",job=~\"${job:regex}\",instance=~\"${instance:regex}\"}, window)",
+        "query": "label_values(codexbar_quota_remaining_percent{monitor=\"codexbar-codex\",provider=\"codex\",job=~\"${job:regex}\",instance=~\"${instance:regex}\"}, window)",
         "refresh": 1,
         "regex": "",
         "skipUrlSync": false,
@@ -1203,9 +1200,9 @@
   },
   "timepicker": {},
   "timezone": "browser",
-  "title": "Win-CodexBar / Codex",
+  "title": "Win-CodexBar / Codex 监控",
   "uid": "win-codexbar-codex",
-  "version": 3,
+  "version": 5,
   "weekStart": "",
-  "description": "Codex-only quota, freshness, fetch health, reset, and local cost monitoring from targets labeled monitor=\"codexbar-codex\"."
+  "description": "Win-CodexBar Codex 配额、数据新鲜度、采集健康、重置时间与本地估算成本监控；目标通过 monitor=\"codexbar-codex\" 标签识别。"
 }

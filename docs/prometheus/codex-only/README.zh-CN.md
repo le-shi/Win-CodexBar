@@ -94,8 +94,8 @@ codexbar_quota_remaining_percent{monitor="codexbar-codex",provider="codex"}
 1. 打开 **Dashboards -> New -> Import**。
 2. 上传 JSON 文件。
 3. 在 `Prometheus` 变量中选择数据源。
-4. Job 默认选择 All；再按 instance 和 window 筛选。示例 job 名为 `codex-bar`，也可以使用其他名称。
+4. 面板界面已中文化；“采集任务”和“节点”默认选择“全部”，“额度窗口”默认选择 `weekly`，也可以切换为其他窗口或“全部”。示例 job 名为 `codex-bar`，也可以使用其他名称。
 
-Dashboard 固定使用 `provider="codex"`，不会展示其他 provider。它不包含多账号面板，因为 Codex 当前不生成对应指标。Codex 成本面板显示本地会话日志估算，不是订阅账单。
+Dashboard 固定使用 `provider="codex"`，不会展示其他 provider。当前值和历史图统一展示剩余额度。它不包含多账号面板，因为 Codex 当前不生成对应指标。Codex 成本面板显示本地会话日志估算，不是订阅账单。
 
 初始化与启动脚本会确保 `/metrics` 启动时只有 Codex provider；Prometheus 的抓取过滤、告警规则和 Dashboard 则持续只使用 Codex 数据。相同 HTTP 服务上的 `/usage`、`/cost`、`/dashboard/v1/snapshot` 等数据路由受同一个 Bearer Token 保护；`/health` 只公开版本和状态。防火墙仍应只允许 Prometheus 服务器访问。
