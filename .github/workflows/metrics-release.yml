@@ -341,31 +341,27 @@ jobs:
             exit 1
           fi
 
-          visible_release_id=''
-          for attempt in {1..20}; do
-            if ! visible_release_id="$(
-              gh api \
-                "repos/${GITHUB_REPOSITORY}/releases/tags/${RELEASE_TAG}" \
-                --jq '.id' 2>/dev/null
-            )"; then
-              visible_release_id=''
-            fi
-            if [[ "$visible_release_id" == "$draft_release_id" ]]; then
-              break
-            fi
-            if [[ -n "$visible_release_id" ]]; then
-              echo "::error::Tag ${RELEASE_TAG} resolved to unexpected release ID ${visible_release_id}."
+          for asset in "${assets[@]}"; do
+            asset_name="$(basename "$asset")"
+            local_asset_size="$(wc -c < "$asset" | tr -d '[:space:]')"
+            upload_state="$(
+              gh api --method POST \
+                -H 'Content-Type: application/octet-stream' \
+                --input "$asset" \
+                -f "name=${asset_name}" \
+                "https://uploads.github.com/repos/${GITHUB_REPOSITORY}/releases/${draft_release_id}/assets" \
+                --jq '[.id, .name, .state, .size] | @tsv'
+            )"
+            IFS=$'\t' read -r uploaded_asset_id uploaded_asset_name uploaded_asset_state \
+              uploaded_asset_size <<< "$upload_state"
+            if [[ ! "$uploaded_asset_id" =~ ^[0-9]+$ || \
+                  "$uploaded_asset_name" != "$asset_name" || \
+                  "$uploaded_asset_state" != uploaded || \
+                  "$uploaded_asset_size" != "$local_asset_size" ]]; then
+              echo "::error::GitHub did not confirm a complete upload for ${asset_name}."
               exit 1
             fi
-            sleep 3
           done
-          if [[ "$visible_release_id" != "$draft_release_id" ]]; then
-            echo "::error::Draft release ${RELEASE_TAG} did not become visible through the tag endpoint."
-            exit 1
-          fi
-
-          gh release upload "$RELEASE_TAG" "${assets[@]}" \
-            --repo "$GITHUB_REPOSITORY"
 
           draft_assets_text="$(
             gh api --paginate \
@@ -388,16 +384,39 @@ jobs:
             fi
           done
 
-          gh release edit "$RELEASE_TAG" \
-            --repo "$GITHUB_REPOSITORY" \
-            --draft=false \
-            --latest=true
+          if ! gh api --method PATCH \
+              "repos/${GITHUB_REPOSITORY}/releases/${draft_release_id}" \
+              -F draft=false \
+              -f make_latest=true \
+              --silent; then
+            echo "::warning::Release publish request returned an error; checking the release by ID before failing."
+          fi
 
-          release_is_draft="$(
-            gh api "repos/${GITHUB_REPOSITORY}/releases/tags/${RELEASE_TAG}" \
-              --jq '.draft'
-          )"
-          if [[ "$release_is_draft" != false ]]; then
+          published_release_id=''
+          published_tag=''
+          release_is_draft=''
+          published_at=''
+          for attempt in {1..10}; do
+            release_state=''
+            if release_state="$(
+              gh api "repos/${GITHUB_REPOSITORY}/releases/${draft_release_id}" \
+                --jq '[.id, .tag_name, .draft, (.published_at // "")] | @tsv' 2>/dev/null
+            )"; then
+              IFS=$'\t' read -r published_release_id published_tag release_is_draft published_at \
+                <<< "$release_state"
+              if [[ "$published_release_id" == "$draft_release_id" && \
+                    "$published_tag" == "$RELEASE_TAG" && \
+                    "$release_is_draft" == false && \
+                    -n "$published_at" ]]; then
+                break
+              fi
+            fi
+            sleep 3
+          done
+          if [[ "$published_release_id" != "$draft_release_id" || \
+                "$published_tag" != "$RELEASE_TAG" || \
+                "$release_is_draft" != false || \
+                -z "$published_at" ]]; then
             echo "::error::Release ${RELEASE_TAG} was not published successfully."
             exit 1
           fi
