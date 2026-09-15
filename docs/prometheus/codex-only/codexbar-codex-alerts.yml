@@ -36,8 +36,8 @@ groups:
           service: win-codexbar
           provider: codex
         annotations:
-          summary: "Win-CodexBar 快照构建持续失败"
-          description: "{{ $labels.instance }} 的 HTTP 抓取成功，但 exporter 连续 10 分钟无法生成监控快照。"
+          summary: "Win-CodexBar 指标生成持续失败"
+          description: "{{ $labels.instance }} 的 HTTP 抓取成功，但 exporter 连续 10 分钟无法生成 Prometheus 指标数据。"
 
       - alert: CodexProviderMissingOrDisabled
         expr: |
@@ -55,7 +55,7 @@ groups:
           provider: codex
         annotations:
           summary: "Codex provider 未启用"
-          description: "{{ $labels.instance }} 的 exporter 可用，但快照中没有已启用的 Codex provider。"
+          description: "{{ $labels.instance }} 的 exporter 可用，但未检测到已启用的 Codex 数据源。"
 
       - alert: CodexBarSnapshotStale
         expr: |
@@ -68,8 +68,8 @@ groups:
           service: win-codexbar
           provider: codex
         annotations:
-          summary: "Win-CodexBar 快照过旧"
-          description: "{{ $labels.instance }} 的快照年龄已经超过 exporter 自身的 stale 阈值。"
+          summary: "Win-CodexBar 指标数据过期"
+          description: "{{ $labels.instance }} 的指标数据已超过 exporter 配置的过期阈值。"
 
       - alert: CodexProviderFetchFailed
         expr: |

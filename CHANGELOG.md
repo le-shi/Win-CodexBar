@@ -1,5 +1,15 @@
 # Changelog
 
+## [Windows] metrics-v0.56.8-r4 - 2026-09-15
+
+### Changed
+- The Codex Grafana dashboard uses direct monitoring-data labels and places local cost, exporter metadata, and collection details in one collapsed auxiliary-information row.
+
+### Fixed
+- Selecting a single Grafana node no longer inserts an invalid escaped IP address into PromQL variable queries.
+
+---
+
 ## [Windows] metrics-v0.56.8-r3 - 2026-09-15
 
 ### Added
