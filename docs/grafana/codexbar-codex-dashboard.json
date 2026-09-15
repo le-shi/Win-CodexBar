@@ -89,7 +89,7 @@
       "targets": [
         {
           "editorMode": "code",
-          "expr": "min(up{job=~\"${job:regex}\",instance=~\"${instance:regex}\"})",
+          "expr": "min(up{monitor=\"codexbar-codex\",job=~\"${job:regex}\",instance=~\"${instance:regex}\"})",
           "instant": true,
           "legendFormat": "scrape",
           "range": false,
@@ -166,7 +166,7 @@
       "targets": [
         {
           "editorMode": "code",
-          "expr": "min(codexbar_up{job=~\"${job:regex}\",instance=~\"${instance:regex}\"})",
+          "expr": "min(codexbar_up{monitor=\"codexbar-codex\",job=~\"${job:regex}\",instance=~\"${instance:regex}\"})",
           "instant": true,
           "legendFormat": "snapshot",
           "range": false,
@@ -233,7 +233,7 @@
       "targets": [
         {
           "editorMode": "code",
-          "expr": "max(codexbar_snapshot_age_seconds{job=~\"${job:regex}\",instance=~\"${instance:regex}\"})",
+          "expr": "max(codexbar_snapshot_age_seconds{monitor=\"codexbar-codex\",job=~\"${job:regex}\",instance=~\"${instance:regex}\"})",
           "instant": true,
           "legendFormat": "age",
           "range": false,
@@ -310,7 +310,7 @@
       "targets": [
         {
           "editorMode": "code",
-          "expr": "max(codexbar_snapshot_stale{job=~\"${job:regex}\",instance=~\"${instance:regex}\"})",
+          "expr": "max(codexbar_snapshot_stale{monitor=\"codexbar-codex\",job=~\"${job:regex}\",instance=~\"${instance:regex}\"})",
           "instant": true,
           "legendFormat": "stale",
           "range": false,
@@ -380,7 +380,7 @@
       "targets": [
         {
           "editorMode": "code",
-          "expr": "100 * (sum(codexbar_provider_up{job=~\"${job:regex}\",instance=~\"${instance:regex}\",provider=\"codex\"} * on(job, instance, provider) codexbar_provider_enabled{job=~\"${job:regex}\",instance=~\"${instance:regex}\",provider=\"codex\"} * on(job, instance) group_left up{job=~\"${job:regex}\",instance=~\"${instance:regex}\"} * on(job, instance) group_left codexbar_up{job=~\"${job:regex}\",instance=~\"${instance:regex}\"}) or vector(0)) / clamp_min(count(up{job=~\"${job:regex}\",instance=~\"${instance:regex}\"}), 1)",
+          "expr": "100 * (sum(codexbar_provider_up{monitor=\"codexbar-codex\",job=~\"${job:regex}\",instance=~\"${instance:regex}\",provider=\"codex\"} * on(job, instance, provider) codexbar_provider_enabled{monitor=\"codexbar-codex\",job=~\"${job:regex}\",instance=~\"${instance:regex}\",provider=\"codex\"} * on(job, instance) group_left up{monitor=\"codexbar-codex\",job=~\"${job:regex}\",instance=~\"${instance:regex}\"} * on(job, instance) group_left codexbar_up{monitor=\"codexbar-codex\",job=~\"${job:regex}\",instance=~\"${instance:regex}\"}) or vector(0)) / clamp_min(count(up{monitor=\"codexbar-codex\",job=~\"${job:regex}\",instance=~\"${instance:regex}\"}), 1)",
           "instant": true,
           "legendFormat": "healthy",
           "range": false,
@@ -439,7 +439,7 @@
       "targets": [
         {
           "editorMode": "code",
-          "expr": "max(codexbar_refresh_interval_seconds{job=~\"${job:regex}\",instance=~\"${instance:regex}\"})",
+          "expr": "max(codexbar_refresh_interval_seconds{monitor=\"codexbar-codex\",job=~\"${job:regex}\",instance=~\"${instance:regex}\"})",
           "instant": true,
           "legendFormat": "refresh",
           "range": false,
@@ -454,7 +454,7 @@
         "type": "prometheus",
         "uid": "${datasource}"
       },
-      "description": "Current Codex quota utilization for each selected window.",
+      "description": "Current remaining Codex quota for each selected window.",
       "fieldConfig": {
         "defaults": {
           "color": {
@@ -467,16 +467,16 @@
             "mode": "absolute",
             "steps": [
               {
-                "color": "green",
+                "color": "red",
                 "value": null
               },
               {
                 "color": "yellow",
-                "value": 70
+                "value": 5
               },
               {
-                "color": "red",
-                "value": 90
+                "color": "green",
+                "value": 20
               }
             ]
           },
@@ -512,14 +512,14 @@
       "targets": [
         {
           "editorMode": "code",
-          "expr": "codexbar_quota_used_percent{job=~\"${job:regex}\",instance=~\"${instance:regex}\",provider=\"codex\",window=~\"${window:regex}\"}",
+          "expr": "codexbar_quota_remaining_percent{monitor=\"codexbar-codex\",job=~\"${job:regex}\",instance=~\"${instance:regex}\",provider=\"codex\",window=~\"${window:regex}\"}",
           "instant": true,
           "legendFormat": "{{instance}} / {{window}}",
           "range": false,
           "refId": "A"
         }
       ],
-      "title": "Quota Used Now",
+      "title": "Quota Remaining Now",
       "type": "bargauge"
     },
     {
@@ -603,14 +603,14 @@
       "targets": [
         {
           "editorMode": "code",
-          "expr": "codexbar_quota_used_percent{job=~\"${job:regex}\",instance=~\"${instance:regex}\",provider=\"codex\",window=~\"${window:regex}\"}",
+          "expr": "codexbar_quota_used_percent{monitor=\"codexbar-codex\",job=~\"${job:regex}\",instance=~\"${instance:regex}\",provider=\"codex\",window=~\"${window:regex}\"}",
           "legendFormat": "{{instance}} / {{window}} used",
           "range": true,
           "refId": "A"
         },
         {
           "editorMode": "code",
-          "expr": "codexbar_quota_remaining_percent{job=~\"${job:regex}\",instance=~\"${instance:regex}\",provider=\"codex\",window=~\"${window:regex}\"}",
+          "expr": "codexbar_quota_remaining_percent{monitor=\"codexbar-codex\",job=~\"${job:regex}\",instance=~\"${instance:regex}\",provider=\"codex\",window=~\"${window:regex}\"}",
           "hide": false,
           "legendFormat": "{{instance}} / {{window}} remaining",
           "range": true,
@@ -678,7 +678,7 @@
       "targets": [
         {
           "editorMode": "code",
-          "expr": "clamp_min(codexbar_quota_reset_timestamp_seconds{job=~\"${job:regex}\",instance=~\"${instance:regex}\",provider=\"codex\",window=~\"${window:regex}\"} - time(), 0)",
+          "expr": "clamp_min(codexbar_quota_reset_timestamp_seconds{monitor=\"codexbar-codex\",job=~\"${job:regex}\",instance=~\"${instance:regex}\",provider=\"codex\",window=~\"${window:regex}\"} - time(), 0)",
           "instant": true,
           "legendFormat": "{{instance}} / {{window}}",
           "range": false,
@@ -759,7 +759,7 @@
       "targets": [
         {
           "editorMode": "code",
-          "expr": "codexbar_provider_up{job=~\"${job:regex}\",instance=~\"${instance:regex}\",provider=\"codex\"}",
+          "expr": "codexbar_provider_up{monitor=\"codexbar-codex\",job=~\"${job:regex}\",instance=~\"${instance:regex}\",provider=\"codex\"}",
           "format": "table",
           "instant": true,
           "legendFormat": "{{instance}} / {{provider}}",
@@ -775,7 +775,8 @@
             "excludeByName": {
               "Time": true,
               "__name__": true,
-              "job": true
+              "job": true,
+              "monitor": true
             },
             "indexByName": {
               "instance": 0,
@@ -871,7 +872,7 @@
       "targets": [
         {
           "editorMode": "code",
-          "expr": "codexbar_provider_data_age_seconds{job=~\"${job:regex}\",instance=~\"${instance:regex}\",provider=\"codex\"}",
+          "expr": "codexbar_provider_data_age_seconds{monitor=\"codexbar-codex\",job=~\"${job:regex}\",instance=~\"${instance:regex}\",provider=\"codex\"}",
           "legendFormat": "{{instance}} / {{provider}}",
           "range": true,
           "refId": "A"
@@ -930,7 +931,7 @@
       "targets": [
         {
           "editorMode": "code",
-          "expr": "codexbar_cost_today_usd{job=~\"${job:regex}\",instance=~\"${instance:regex}\",provider=\"codex\"}",
+          "expr": "codexbar_cost_today_usd{monitor=\"codexbar-codex\",job=~\"${job:regex}\",instance=~\"${instance:regex}\",provider=\"codex\"}",
           "instant": true,
           "legendFormat": "{{instance}} today",
           "range": false,
@@ -938,7 +939,7 @@
         },
         {
           "editorMode": "code",
-          "expr": "codexbar_cost_last_30_days_usd{job=~\"${job:regex}\",instance=~\"${instance:regex}\",provider=\"codex\"}",
+          "expr": "codexbar_cost_last_30_days_usd{monitor=\"codexbar-codex\",job=~\"${job:regex}\",instance=~\"${instance:regex}\",provider=\"codex\"}",
           "instant": true,
           "legendFormat": "{{instance}} last 30 days",
           "range": false,
@@ -988,7 +989,7 @@
       "targets": [
         {
           "editorMode": "code",
-          "expr": "label_replace(codexbar_build_info{job=~\"${job:regex}\",instance=~\"${instance:regex}\"}, \"metric\", \"codexbar_build_info\", \"\", \"\") or label_replace(codexbar_snapshot_schema_version{job=~\"${job:regex}\",instance=~\"${instance:regex}\"}, \"metric\", \"codexbar_snapshot_schema_version\", \"\", \"\") or label_replace(codexbar_snapshot_generated_timestamp_seconds{job=~\"${job:regex}\",instance=~\"${instance:regex}\"}, \"metric\", \"codexbar_snapshot_generated_timestamp_seconds\", \"\", \"\") or label_replace(codexbar_snapshot_stale_after_seconds{job=~\"${job:regex}\",instance=~\"${instance:regex}\"}, \"metric\", \"codexbar_snapshot_stale_after_seconds\", \"\", \"\")",
+          "expr": "label_replace(codexbar_build_info{monitor=\"codexbar-codex\",job=~\"${job:regex}\",instance=~\"${instance:regex}\"}, \"metric\", \"codexbar_build_info\", \"\", \"\") or label_replace(codexbar_snapshot_schema_version{monitor=\"codexbar-codex\",job=~\"${job:regex}\",instance=~\"${instance:regex}\"}, \"metric\", \"codexbar_snapshot_schema_version\", \"\", \"\") or label_replace(codexbar_snapshot_generated_timestamp_seconds{monitor=\"codexbar-codex\",job=~\"${job:regex}\",instance=~\"${instance:regex}\"}, \"metric\", \"codexbar_snapshot_generated_timestamp_seconds\", \"\", \"\") or label_replace(codexbar_snapshot_stale_after_seconds{monitor=\"codexbar-codex\",job=~\"${job:regex}\",instance=~\"${instance:regex}\"}, \"metric\", \"codexbar_snapshot_stale_after_seconds\", \"\", \"\")",
           "instant": true,
           "legendFormat": "{{instance}} / {{metric}}",
           "range": false,
@@ -1004,7 +1005,8 @@
             "excludeByName": {
               "Time": true,
               "job": true,
-              "__name__": true
+              "__name__": true,
+              "monitor": true
             },
             "indexByName": {
               "instance": 0,
@@ -1061,7 +1063,7 @@
       "targets": [
         {
           "editorMode": "code",
-          "expr": "label_replace(codexbar_provider_enabled{job=~\"${job:regex}\",instance=~\"${instance:regex}\",provider=\"codex\"}, \"metric\", \"codexbar_provider_enabled\", \"\", \"\") or label_replace(codexbar_provider_up{job=~\"${job:regex}\",instance=~\"${instance:regex}\",provider=\"codex\"}, \"metric\", \"codexbar_provider_up\", \"\", \"\") or label_replace(codexbar_provider_error_code{job=~\"${job:regex}\",instance=~\"${instance:regex}\",provider=\"codex\"}, \"metric\", \"codexbar_provider_error_code\", \"\", \"\") or label_replace(codexbar_provider_updated_timestamp_seconds{job=~\"${job:regex}\",instance=~\"${instance:regex}\",provider=\"codex\"}, \"metric\", \"codexbar_provider_updated_timestamp_seconds\", \"\", \"\")",
+          "expr": "label_replace(codexbar_provider_enabled{monitor=\"codexbar-codex\",job=~\"${job:regex}\",instance=~\"${instance:regex}\",provider=\"codex\"}, \"metric\", \"codexbar_provider_enabled\", \"\", \"\") or label_replace(codexbar_provider_up{monitor=\"codexbar-codex\",job=~\"${job:regex}\",instance=~\"${instance:regex}\",provider=\"codex\"}, \"metric\", \"codexbar_provider_up\", \"\", \"\") or label_replace(codexbar_provider_error_code{monitor=\"codexbar-codex\",job=~\"${job:regex}\",instance=~\"${instance:regex}\",provider=\"codex\"}, \"metric\", \"codexbar_provider_error_code\", \"\", \"\") or label_replace(codexbar_provider_updated_timestamp_seconds{monitor=\"codexbar-codex\",job=~\"${job:regex}\",instance=~\"${instance:regex}\",provider=\"codex\"}, \"metric\", \"codexbar_provider_updated_timestamp_seconds\", \"\", \"\")",
           "instant": true,
           "legendFormat": "{{instance}} / {{provider}} / {{metric}}",
           "range": false,
@@ -1077,7 +1079,8 @@
             "excludeByName": {
               "Time": true,
               "job": true,
-              "__name__": true
+              "__name__": true,
+              "monitor": true
             },
             "indexByName": {
               "instance": 0,
@@ -1121,24 +1124,28 @@
         "type": "datasource"
       },
       {
-        "current": {},
+        "current": {
+          "text": "All",
+          "value": "$__all"
+        },
         "datasource": {
           "type": "prometheus",
           "uid": "${datasource}"
         },
-      "definition": "label_values(up{job=~\".*codexbar.*\"}, job)",
+        "definition": "label_values(up{monitor=\"codexbar-codex\"}, job)",
         "hide": 0,
-        "includeAll": false,
+        "includeAll": true,
         "label": "Job",
-        "multi": false,
+        "multi": true,
         "name": "job",
         "options": [],
-      "query": "label_values(up{job=~\".*codexbar.*\"}, job)",
+        "query": "label_values(up{monitor=\"codexbar-codex\"}, job)",
         "refresh": 1,
         "regex": "",
         "skipUrlSync": false,
         "sort": 1,
-        "type": "query"
+        "type": "query",
+        "allValue": ".*"
       },
       {
         "allValue": ".*",
@@ -1150,14 +1157,14 @@
           "type": "prometheus",
           "uid": "${datasource}"
         },
-      "definition": "label_values(up{job=~\"${job:regex}\"}, instance)",
+        "definition": "label_values(up{monitor=\"codexbar-codex\",job=~\"${job:regex}\"}, instance)",
         "hide": 0,
         "includeAll": true,
         "label": "Instance",
         "multi": true,
         "name": "instance",
         "options": [],
-      "query": "label_values(up{job=~\"${job:regex}\"}, instance)",
+        "query": "label_values(up{monitor=\"codexbar-codex\",job=~\"${job:regex}\"}, instance)",
         "refresh": 1,
         "regex": "",
         "skipUrlSync": false,
@@ -1174,14 +1181,14 @@
           "type": "prometheus",
           "uid": "${datasource}"
         },
-        "definition": "label_values(codexbar_quota_used_percent{provider=\"codex\",job=~\"${job:regex}\",instance=~\"${instance:regex}\"}, window)",
+        "definition": "label_values(codexbar_quota_used_percent{monitor=\"codexbar-codex\",provider=\"codex\",job=~\"${job:regex}\",instance=~\"${instance:regex}\"}, window)",
         "hide": 0,
         "includeAll": true,
         "label": "Window",
         "multi": true,
         "name": "window",
         "options": [],
-        "query": "label_values(codexbar_quota_used_percent{provider=\"codex\",job=~\"${job:regex}\",instance=~\"${instance:regex}\"}, window)",
+        "query": "label_values(codexbar_quota_used_percent{monitor=\"codexbar-codex\",provider=\"codex\",job=~\"${job:regex}\",instance=~\"${instance:regex}\"}, window)",
         "refresh": 1,
         "regex": "",
         "skipUrlSync": false,
@@ -1198,7 +1205,7 @@
   "timezone": "browser",
   "title": "Win-CodexBar / Codex",
   "uid": "win-codexbar-codex",
-  "version": 1,
+  "version": 3,
   "weekStart": "",
-  "description": "Codex-only quota, freshness, fetch health, reset, and local cost monitoring from Win-CodexBar."
+  "description": "Codex-only quota, freshness, fetch health, reset, and local cost monitoring from targets labeled monitor=\"codexbar-codex\"."
 }

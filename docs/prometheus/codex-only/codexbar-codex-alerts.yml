@@ -3,22 +3,22 @@ groups:
     rules:
       - record: codexbar:codex_provider_data_fresh
         expr: |
-          (codexbar_provider_enabled{job="codexbar-codex",provider="codex"} == 1)
+          (codexbar_provider_enabled{monitor="codexbar-codex",provider="codex"} == 1)
           and on (job, instance)
-          (codexbar_up{job="codexbar-codex"} == 1)
+          (codexbar_up{monitor="codexbar-codex"} == 1)
           and on (job, instance)
-          (codexbar_snapshot_stale{job="codexbar-codex"} == 0)
+          (codexbar_snapshot_stale{monitor="codexbar-codex"} == 0)
           and on (job, instance, provider)
-          (codexbar_provider_up{job="codexbar-codex",provider="codex"} == 1)
+          (codexbar_provider_up{monitor="codexbar-codex",provider="codex"} == 1)
           and on (job, instance, provider)
           (
-            codexbar_provider_data_age_seconds{job="codexbar-codex",provider="codex"}
+            codexbar_provider_data_age_seconds{monitor="codexbar-codex",provider="codex"}
             <= on (job, instance) group_left
-            clamp_min(codexbar_snapshot_stale_after_seconds{job="codexbar-codex"}, 900)
+            clamp_min(codexbar_snapshot_stale_after_seconds{monitor="codexbar-codex"}, 900)
           )
 
       - alert: CodexBarExporterDown
-        expr: up{job="codexbar-codex"} == 0
+        expr: up{monitor="codexbar-codex"} == 0
         for: 10m
         labels:
           severity: critical
@@ -29,7 +29,7 @@ groups:
           description: "{{ $labels.instance }} 连续 10 分钟抓取失败；请检查进程、网络、Bearer Token 和 Host 校验。"
 
       - alert: CodexBarSnapshotBuildFailed
-        expr: codexbar_up{job="codexbar-codex"} == 0
+        expr: codexbar_up{monitor="codexbar-codex"} == 0
         for: 10m
         labels:
           severity: critical
@@ -42,12 +42,12 @@ groups:
       - alert: CodexProviderMissingOrDisabled
         expr: |
           (
-            (up{job="codexbar-codex"} == 1)
+            (up{monitor="codexbar-codex"} == 1)
             and on (job, instance)
-            (codexbar_up{job="codexbar-codex"} == 1)
+            (codexbar_up{monitor="codexbar-codex"} == 1)
           )
           unless on (job, instance)
-          (codexbar_provider_enabled{job="codexbar-codex",provider="codex"} == 1)
+          (codexbar_provider_enabled{monitor="codexbar-codex",provider="codex"} == 1)
         for: 10m
         labels:
           severity: critical
@@ -59,9 +59,9 @@ groups:
 
       - alert: CodexBarSnapshotStale
         expr: |
-          (codexbar_snapshot_stale{job="codexbar-codex"} == 1)
+          (codexbar_snapshot_stale{monitor="codexbar-codex"} == 1)
           and on (job, instance)
-          (codexbar_provider_enabled{job="codexbar-codex",provider="codex"} == 1)
+          (codexbar_provider_enabled{monitor="codexbar-codex",provider="codex"} == 1)
         for: 10m
         labels:
           severity: warning
@@ -73,13 +73,13 @@ groups:
 
       - alert: CodexProviderFetchFailed
         expr: |
-          (codexbar_provider_enabled{job="codexbar-codex",provider="codex"} == 1)
+          (codexbar_provider_enabled{monitor="codexbar-codex",provider="codex"} == 1)
           and on (job, instance, provider)
-          (codexbar_provider_up{job="codexbar-codex",provider="codex"} == 0)
+          (codexbar_provider_up{monitor="codexbar-codex",provider="codex"} == 0)
           and on (job, instance)
-          (codexbar_up{job="codexbar-codex"} == 1)
+          (codexbar_up{monitor="codexbar-codex"} == 1)
           and on (job, instance)
-          (codexbar_snapshot_stale{job="codexbar-codex"} == 0)
+          (codexbar_snapshot_stale{monitor="codexbar-codex"} == 0)
         for: 10m
         labels:
           severity: critical
@@ -91,14 +91,14 @@ groups:
       - alert: CodexProviderDataTooOld
         expr: |
           (
-            codexbar_provider_data_age_seconds{job="codexbar-codex",provider="codex"}
+            codexbar_provider_data_age_seconds{monitor="codexbar-codex",provider="codex"}
             > on (job, instance) group_left
-            clamp_min(codexbar_snapshot_stale_after_seconds{job="codexbar-codex"}, 900)
+            clamp_min(codexbar_snapshot_stale_after_seconds{monitor="codexbar-codex"}, 900)
           )
           and on (job, instance, provider)
-          (codexbar_provider_up{job="codexbar-codex",provider="codex"} == 1)
+          (codexbar_provider_up{monitor="codexbar-codex",provider="codex"} == 1)
           and on (job, instance)
-          (codexbar_snapshot_stale{job="codexbar-codex"} == 0)
+          (codexbar_snapshot_stale{monitor="codexbar-codex"} == 0)
         for: 10m
         labels:
           severity: warning
@@ -109,9 +109,9 @@ groups:
 
       - alert: CodexQuotaDataMissing
         expr: |
-          (codexbar:codex_provider_data_fresh{job="codexbar-codex",provider="codex"} == 1)
+          (codexbar:codex_provider_data_fresh{monitor="codexbar-codex",provider="codex"} == 1)
           unless on (job, instance, provider)
-          codexbar_quota_used_percent{job="codexbar-codex",provider="codex"}
+          codexbar_quota_used_percent{monitor="codexbar-codex",provider="codex"}
         for: 15m
         labels:
           severity: warning
@@ -123,14 +123,14 @@ groups:
       - alert: CodexQuotaRemainingLow
         expr: |
           (
-            (codexbar_quota_remaining_percent{job="codexbar-codex",provider="codex"} <= 20)
+            (codexbar_quota_remaining_percent{monitor="codexbar-codex",provider="codex"} <= 20)
             and on (job, instance, provider, window)
-            (codexbar_quota_remaining_percent{job="codexbar-codex",provider="codex"} > 5)
+            (codexbar_quota_remaining_percent{monitor="codexbar-codex",provider="codex"} > 5)
           )
           and on (job, instance, provider, window)
-          (codexbar_quota_idle{job="codexbar-codex",provider="codex"} == 0)
+          (codexbar_quota_idle{monitor="codexbar-codex",provider="codex"} == 0)
           and on (job, instance, provider)
-          (codexbar:codex_provider_data_fresh{job="codexbar-codex",provider="codex"} == 1)
+          (codexbar:codex_provider_data_fresh{monitor="codexbar-codex",provider="codex"} == 1)
         for: 10m
         labels:
           severity: warning
@@ -141,11 +141,11 @@ groups:
 
       - alert: CodexQuotaRemainingCritical
         expr: |
-          (codexbar_quota_remaining_percent{job="codexbar-codex",provider="codex"} <= 5)
+          (codexbar_quota_remaining_percent{monitor="codexbar-codex",provider="codex"} <= 5)
           and on (job, instance, provider, window)
-          (codexbar_quota_idle{job="codexbar-codex",provider="codex"} == 0)
+          (codexbar_quota_idle{monitor="codexbar-codex",provider="codex"} == 0)
           and on (job, instance, provider)
-          (codexbar:codex_provider_data_fresh{job="codexbar-codex",provider="codex"} == 1)
+          (codexbar:codex_provider_data_fresh{monitor="codexbar-codex",provider="codex"} == 1)
         for: 5m
         labels:
           severity: critical
@@ -156,11 +156,11 @@ groups:
 
       - alert: CodexQuotaResetOverdue
         expr: |
-          ((time() - codexbar_quota_reset_timestamp_seconds{job="codexbar-codex",provider="codex"}) > 2700)
+          ((time() - codexbar_quota_reset_timestamp_seconds{monitor="codexbar-codex",provider="codex"}) > 2700)
           and on (job, instance, provider, window)
-          (codexbar_quota_idle{job="codexbar-codex",provider="codex"} == 0)
+          (codexbar_quota_idle{monitor="codexbar-codex",provider="codex"} == 0)
           and on (job, instance, provider)
-          (codexbar:codex_provider_data_fresh{job="codexbar-codex",provider="codex"} == 1)
+          (codexbar:codex_provider_data_fresh{monitor="codexbar-codex",provider="codex"} == 1)
         for: 10m
         labels:
           severity: warning

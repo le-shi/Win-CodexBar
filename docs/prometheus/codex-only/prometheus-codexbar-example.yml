@@ -6,7 +6,7 @@ rule_files:
   - /etc/prometheus/rules/codexbar-codex-alerts.yml
 
 scrape_configs:
-  - job_name: codexbar-codex
+  - job_name: codex-bar
     scrape_interval: 5m
     scrape_timeout: 4m
     metrics_path: /metrics
@@ -21,4 +21,8 @@ scrape_configs:
         action: keep
     static_configs:
       - targets:
-          - 192.168.13.111:8080
+          - 192.168.13.111:8081
+          - 192.168.13.241:8081
+          - 192.168.13.184:8081
+        labels:
+          monitor: codexbar-codex

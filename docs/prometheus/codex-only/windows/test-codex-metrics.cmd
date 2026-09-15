@@ -2,7 +2,7 @@
 setlocal EnableExtensions DisableDelayedExpansion
 
 if not defined CODEXBAR_BIND_IP set "CODEXBAR_BIND_IP=192.168.13.111"
-if not defined CODEXBAR_PORT set "CODEXBAR_PORT=8080"
+if not defined CODEXBAR_PORT set "CODEXBAR_PORT=8081"
 
 set "TOKEN_FILE=%~dp0metrics.token"
 if not exist "%TOKEN_FILE%" (

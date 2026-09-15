@@ -3,7 +3,7 @@ setlocal EnableExtensions DisableDelayedExpansion
 
 rem Override these variables before launching when the host or port differs.
 if not defined CODEXBAR_BIND_IP set "CODEXBAR_BIND_IP=192.168.13.111"
-if not defined CODEXBAR_PORT set "CODEXBAR_PORT=8080"
+if not defined CODEXBAR_PORT set "CODEXBAR_PORT=8081"
 if not defined CODEXBAR_REFRESH_INTERVAL set "CODEXBAR_REFRESH_INTERVAL=300"
 
 set "APP_DIR=%~dp0"

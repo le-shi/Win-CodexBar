@@ -18,11 +18,11 @@ start-codex-metrics.cmd
 - 在共享 CodexBar 配置中只保留 Codex provider；桌面版也会读取这份配置。
 - 生成 64 位十六进制 Bearer Token，并限制 Token 文件 ACL。
 
-启动脚本默认绑定 `192.168.13.111:8080`。地址变化时可先设置环境变量：
+启动脚本默认绑定 `192.168.13.111:8081`。每台节点必须改成自己的局域网 IP：
 
 ```cmd
 set CODEXBAR_BIND_IP=192.168.13.111
-set CODEXBAR_PORT=8080
+set CODEXBAR_PORT=8081
 start-codex-metrics.cmd
 ```
 
@@ -30,6 +30,7 @@ start-codex-metrics.cmd
 
 ```cmd
 set CODEXBAR_BIND_IP=192.168.13.111
+set CODEXBAR_PORT=8081
 test-codex-metrics.cmd
 ```
 
@@ -44,14 +45,16 @@ New-NetFirewallRule `
   -Action Allow `
   -Protocol TCP `
   -LocalAddress 192.168.13.111 `
-  -LocalPort 8080 `
+  -LocalPort 8081 `
   -RemoteAddress '<PROMETHEUS_SERVER_IP>' `
   -Profile Domain,Private
 ```
 
 ## 2. Prometheus
 
-将 Windows 节点的 `windows\metrics.token` 内容复制到 Prometheus 主机，文件中只写 Token，不带 `Bearer ` 前缀：
+示例中的 3 台节点共用一个 Token。当前三台节点使用同一个启动 Token 时，可直接使用该配置。
+
+在全新节点上使用本包时，先在第一台运行 `setup-codex-only.cmd` 生成 `metrics.token`；再把这同一个文件安全复制到另外两台的 `windows` 目录，然后在另外两台运行 `setup-codex-only.cmd`。脚本会保留已有 Token 并重新设置本机 ACL。最后将同一 Token 的内容复制到 Prometheus 主机，文件中只写 Token，不带 `Bearer ` 前缀：
 
 ```bash
 sudo install -d -m 0750 -o root -g prometheus /etc/prometheus/secrets
@@ -65,7 +68,9 @@ sudo chmod 0640 /etc/prometheus/secrets/codexbar.token
 sudo install -m 0644 codexbar-codex-alerts.yml /etc/prometheus/rules/codexbar-codex-alerts.yml
 ```
 
-输入 Token 后按回车。把 `prometheus-codexbar-example.yml` 中的 `rule_files` 和 `scrape_configs` 合并到现有 `prometheus.yml`，然后检查配置：
+输入 Token 后按回车。把 `prometheus-codexbar-example.yml` 中的 `rule_files` 和 `scrape_configs` 合并到现有 `prometheus.yml`。`job_name` 可以修改，但必须保留每个 target 的 `monitor: codexbar-codex` 标签，告警和 Dashboard 使用该标签识别监控目标。
+
+`authorization` 对整个 scrape job 生效。如果每台节点的 Token 不同，请拆成 3 个 job，每个 job 配置自己的 `credentials_file` 和一个 target，并在每个 target 上保留相同的 `monitor: codexbar-codex` 标签。完成后检查配置：
 
 ```bash
 promtool check rules /etc/prometheus/rules/codexbar-codex-alerts.yml
@@ -75,9 +80,9 @@ promtool check config /etc/prometheus/prometheus.yml
 重载 Prometheus 后查询：
 
 ```promql
-up{job="codexbar-codex"}
-codexbar_provider_up{job="codexbar-codex",provider="codex"}
-codexbar_quota_remaining_percent{job="codexbar-codex",provider="codex"}
+up{monitor="codexbar-codex"}
+codexbar_provider_up{monitor="codexbar-codex",provider="codex"}
+codexbar_quota_remaining_percent{monitor="codexbar-codex",provider="codex"}
 ```
 
 告警阈值为：剩余 `5% < quota <= 20%` 时 warning，剩余 `quota <= 5%` 时 critical。采集正常但连续 15 分钟没有任何配额窗口时也会 warning，防止接口字段变化造成静默失明。规则覆盖 Codex 的 session、weekly、model、tertiary 和附加动态窗口；如只关注主订阅窗口，可在额度规则中增加 `window=~"session|weekly"`。
@@ -89,7 +94,7 @@ codexbar_quota_remaining_percent{job="codexbar-codex",provider="codex"}
 1. 打开 **Dashboards -> New -> Import**。
 2. 上传 JSON 文件。
 3. 在 `Prometheus` 变量中选择数据源。
-4. 选择 `job=codexbar-codex`，再按 instance 和 window 筛选。
+4. Job 默认选择 All；再按 instance 和 window 筛选。示例 job 名为 `codex-bar`，也可以使用其他名称。
 
 Dashboard 固定使用 `provider="codex"`，不会展示其他 provider。它不包含多账号面板，因为 Codex 当前不生成对应指标。Codex 成本面板显示本地会话日志估算，不是订阅账单。
 
