@@ -342,11 +342,13 @@ jobs:
 
           visible_release_id=''
           for attempt in {1..20}; do
-            visible_release_id="$(
+            if ! visible_release_id="$(
               gh api \
                 "repos/${GITHUB_REPOSITORY}/releases/tags/${RELEASE_TAG}" \
-                --jq '.id' 2>/dev/null || true
-            )"
+                --jq '.id' 2>/dev/null
+            )"; then
+              visible_release_id=''
+            fi
             if [[ "$visible_release_id" == "$draft_release_id" ]]; then
               break
             fi
