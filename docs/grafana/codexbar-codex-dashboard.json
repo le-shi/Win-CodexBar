@@ -641,10 +641,6 @@
                 "value": 0
               },
               {
-                "id": "custom.width",
-                "value": 80
-              },
-              {
                 "id": "mappings",
                 "value": [
                   {
@@ -691,10 +687,6 @@
                 "value": "dateTimeAsIso"
               },
               {
-                "id": "custom.width",
-                "value": 180
-              },
-              {
                 "id": "mappings",
                 "value": [
                   {
@@ -709,23 +701,11 @@
                 ]
               }
             ]
-          },
-          {
-            "matcher": {
-              "id": "byName",
-              "options": "节点"
-            },
-            "properties": [
-              {
-                "id": "custom.width",
-                "value": 150
-              }
-            ]
           }
         ]
       },
       "gridPos": {
-        "h": 5,
+        "h": 7,
         "w": 8,
         "x": 0,
         "y": 12
@@ -833,7 +813,7 @@
         "overrides": []
       },
       "gridPos": {
-        "h": 5,
+        "h": 7,
         "w": 5,
         "x": 8,
         "y": 12
@@ -917,7 +897,7 @@
         "overrides": []
       },
       "gridPos": {
-        "h": 5,
+        "h": 7,
         "w": 5,
         "x": 13,
         "y": 12
@@ -1028,7 +1008,7 @@
         "overrides": []
       },
       "gridPos": {
-        "h": 5,
+        "h": 7,
         "w": 6,
         "x": 18,
         "y": 12
@@ -1066,7 +1046,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 17
+        "y": 19
       },
       "id": 18,
       "panels": [
@@ -1099,7 +1079,7 @@
             "h": 7,
             "w": 24,
             "x": 0,
-            "y": 18
+            "y": 20
           },
           "id": 12,
           "options": {
@@ -1160,7 +1140,7 @@
             "h": 7,
             "w": 12,
             "x": 0,
-            "y": 25
+            "y": 27
           },
           "id": 15,
           "options": {
@@ -1236,7 +1216,7 @@
             "h": 7,
             "w": 12,
             "x": 12,
-            "y": 25
+            "y": 27
           },
           "id": 16,
           "options": {
@@ -1402,7 +1382,7 @@
   "timezone": "browser",
   "title": "Win-CodexBar / Codex 监控",
   "uid": "win-codexbar-codex",
-  "version": 10,
+  "version": 11,
   "weekStart": "",
   "description": "Win-CodexBar Codex 配额、重置卡、数据时效性、采集健康、重置时间与本地估算成本监控；目标通过 monitor=\"codexbar-codex\" 标签识别。"
 }
