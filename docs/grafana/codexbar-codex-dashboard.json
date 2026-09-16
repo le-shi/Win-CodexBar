@@ -618,48 +618,72 @@
         "type": "prometheus",
         "uid": "${datasource}"
       },
-      "description": "当前可用的 Codex 限流重置卡数量，以及所有可用卡中最早的到期时间。张数 -1 表示 PAT 模式、接口不支持或查询失败；没有可用卡或接口未提供有效期时显示“未提供”。该接口结果缓存 10 分钟。",
+      "description": "每个节点占一行，显示当前可用的 Codex 限流重置卡数量和所有可用卡中最早的到期时间。张数 -1 表示 PAT 模式、接口不支持或查询失败；没有可用卡或接口未提供有效期时显示“未提供”。该接口结果缓存 10 分钟。",
       "fieldConfig": {
         "defaults": {
-          "color": {
-            "mode": "thresholds"
-          },
-          "decimals": 0,
-          "mappings": [
-            {
-              "options": {
-                "-1": {
-                  "color": "orange",
-                  "text": "无法获取"
-                }
-              },
-              "type": "value"
-            }
-          ],
-          "min": -1,
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "orange",
-                "value": null
-              },
-              {
-                "color": "red",
-                "value": 0
-              },
-              {
-                "color": "green",
-                "value": 1
-              }
-            ]
+          "custom": {
+            "align": "auto",
+            "cellOptions": {
+              "type": "auto"
+            },
+            "inspect": false
           }
         },
         "overrides": [
           {
             "matcher": {
-              "id": "byFrameRefID",
-              "options": "B"
+              "id": "byName",
+              "options": "可用张数"
+            },
+            "properties": [
+              {
+                "id": "decimals",
+                "value": 0
+              },
+              {
+                "id": "custom.width",
+                "value": 80
+              },
+              {
+                "id": "mappings",
+                "value": [
+                  {
+                    "options": {
+                      "-1": {
+                        "color": "orange",
+                        "text": "无法获取"
+                      }
+                    },
+                    "type": "value"
+                  }
+                ]
+              },
+              {
+                "id": "thresholds",
+                "value": {
+                  "mode": "absolute",
+                  "steps": [
+                    {
+                      "color": "orange",
+                      "value": null
+                    },
+                    {
+                      "color": "red",
+                      "value": 0
+                    },
+                    {
+                      "color": "green",
+                      "value": 1
+                    }
+                  ]
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "最近到期"
             },
             "properties": [
               {
@@ -667,11 +691,8 @@
                 "value": "dateTimeAsIso"
               },
               {
-                "id": "color",
-                "value": {
-                  "fixedColor": "blue",
-                  "mode": "fixed"
-                }
+                "id": "custom.width",
+                "value": 180
               },
               {
                 "id": "mappings",
@@ -688,51 +709,95 @@
                 ]
               }
             ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "节点"
+            },
+            "properties": [
+              {
+                "id": "custom.width",
+                "value": 150
+              }
+            ]
           }
         ]
       },
       "gridPos": {
-        "h": 7,
-        "w": 6,
+        "h": 5,
+        "w": 8,
         "x": 0,
         "y": 12
       },
       "id": 17,
       "options": {
-        "colorMode": "background",
-        "graphMode": "none",
-        "justifyMode": "auto",
-        "orientation": "horizontal",
-        "reduceOptions": {
-          "calcs": [
-            "lastNotNull"
-          ],
+        "cellHeight": "sm",
+        "footer": {
+          "countRows": false,
           "fields": "",
-          "values": false
+          "reducer": [
+            "sum"
+          ],
+          "show": false
         },
-        "textMode": "auto",
-        "wideLayout": true
+        "showHeader": true
       },
       "targets": [
         {
           "editorMode": "code",
-          "expr": "codexbar_reset_credits_available{monitor=\"codexbar-codex\",job=~\"$job\",instance=~\"$instance\",provider=\"codex\"}",
+          "expr": "max by (instance) (codexbar_reset_credits_available{monitor=\"codexbar-codex\",job=~\"$job\",instance=~\"$instance\",provider=\"codex\"})",
+          "format": "table",
           "instant": true,
-          "legendFormat": "{{instance}} / 可用张数",
+          "legendFormat": "可用张数",
           "range": false,
           "refId": "A"
         },
         {
           "editorMode": "code",
-          "expr": "(codexbar_reset_credits_next_expiry_timestamp_seconds{monitor=\"codexbar-codex\",job=~\"$job\",instance=~\"$instance\",provider=\"codex\"} * 1000) or on(job, instance, provider) (codexbar_reset_credits_available{monitor=\"codexbar-codex\",job=~\"$job\",instance=~\"$instance\",provider=\"codex\"} * 0)",
+          "expr": "(max by (instance) (codexbar_reset_credits_next_expiry_timestamp_seconds{monitor=\"codexbar-codex\",job=~\"$job\",instance=~\"$instance\",provider=\"codex\"}) * 1000) or on(instance) (max by (instance) (codexbar_reset_credits_available{monitor=\"codexbar-codex\",job=~\"$job\",instance=~\"$instance\",provider=\"codex\"}) * 0)",
+          "format": "table",
           "instant": true,
-          "legendFormat": "{{instance}} / 最近到期",
+          "legendFormat": "最近到期",
           "range": false,
           "refId": "B"
         }
       ],
       "title": "Codex 重置卡",
-      "type": "stat"
+      "transformations": [
+        {
+          "id": "joinByField",
+          "options": {
+            "byField": "instance",
+            "mode": "outer"
+          }
+        },
+        {
+          "id": "organize",
+          "options": {
+            "excludeByName": {
+              "Time": true,
+              "Time #A": true,
+              "Time #B": true,
+              "__name__": true,
+              "job": true,
+              "monitor": true,
+              "provider": true
+            },
+            "indexByName": {
+              "instance": 0,
+              "Value #A": 1,
+              "Value #B": 2
+            },
+            "renameByName": {
+              "Value #A": "可用张数",
+              "Value #B": "最近到期",
+              "instance": "节点"
+            }
+          }
+        }
+      ],
+      "type": "table"
     },
     {
       "datasource": {
@@ -768,9 +833,9 @@
         "overrides": []
       },
       "gridPos": {
-        "h": 7,
-        "w": 6,
-        "x": 6,
+        "h": 5,
+        "w": 5,
+        "x": 8,
         "y": 12
       },
       "id": 9,
@@ -852,9 +917,9 @@
         "overrides": []
       },
       "gridPos": {
-        "h": 7,
-        "w": 6,
-        "x": 12,
+        "h": 5,
+        "w": 5,
+        "x": 13,
         "y": 12
       },
       "id": 10,
@@ -963,7 +1028,7 @@
         "overrides": []
       },
       "gridPos": {
-        "h": 7,
+        "h": 5,
         "w": 6,
         "x": 18,
         "y": 12
@@ -1001,7 +1066,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 19
+        "y": 17
       },
       "id": 18,
       "panels": [
@@ -1034,7 +1099,7 @@
             "h": 7,
             "w": 24,
             "x": 0,
-            "y": 20
+            "y": 18
           },
           "id": 12,
           "options": {
@@ -1095,7 +1160,7 @@
             "h": 7,
             "w": 12,
             "x": 0,
-            "y": 27
+            "y": 25
           },
           "id": 15,
           "options": {
@@ -1171,7 +1236,7 @@
             "h": 7,
             "w": 12,
             "x": 12,
-            "y": 27
+            "y": 25
           },
           "id": 16,
           "options": {
@@ -1337,7 +1402,7 @@
   "timezone": "browser",
   "title": "Win-CodexBar / Codex 监控",
   "uid": "win-codexbar-codex",
-  "version": 8,
+  "version": 10,
   "weekStart": "",
   "description": "Win-CodexBar Codex 配额、重置卡、数据时效性、采集健康、重置时间与本地估算成本监控；目标通过 monitor=\"codexbar-codex\" 标签识别。"
 }

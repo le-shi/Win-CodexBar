@@ -4,7 +4,7 @@
 
 ### Added
 - Prometheus exposes `codexbar_reset_credits_next_expiry_timestamp_seconds{provider="codex"}` for the earliest expiry among currently available reset credits.
-- The Codex Grafana dashboard shows the available reset-credit count and nearest expiry together.
+- The Codex Grafana dashboard shows one reset-credit row per node, with separate count and nearest-expiry columns, in a compact status row.
 
 ---
 
