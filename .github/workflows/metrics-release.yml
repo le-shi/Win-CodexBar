@@ -7,7 +7,7 @@ on:
   workflow_dispatch:
     inputs:
       tag:
-        description: 'Existing release tag (for example, metrics-v0.56.8-r4)'
+        description: 'Existing release tag (for example, metrics-v0.56.8-r5)'
         required: true
         type: string
 
@@ -280,6 +280,7 @@ jobs:
           - Enable the opt-in endpoint with `codexbar-cli serve --metrics`.
           - `/metrics` uses the same Bearer token and Host allowlist as the dashboard endpoints.
           - `codexbar_reset_credits_available{provider="codex"}` reports the cached reset-credit count; `0` means exhausted and `-1` means unavailable or unsupported. Normal refreshes use a ten-minute cache; suspicious weekly resets may bypass it for independent inventory observations.
+          - `codexbar_reset_credits_next_expiry_timestamp_seconds{provider="codex"}` reports the earliest expiry among currently available reset credits when the API provides one.
           - Prometheus setup is documented in `docs/CLI.md`.
           - The Codex-only monitoring kit and importable Grafana dashboard are under `docs/prometheus/codex-only` and `docs/grafana/codexbar-codex-dashboard.json`.
           - The Grafana dashboard supports single-node selection and keeps auxiliary cost and diagnostic panels collapsed by default.

@@ -139,7 +139,7 @@ Winget 分发已通过 [microsoft/winget-pkgs](https://github.com/microsoft/wing
 - **便携版**：`CodexBar-<version>-portable.exe`
 - **校验和**：每个发布版本都包含 `.sha256` 文件，便于手动校验
 
-Prometheus exporter CLI 单独发布在 [`le-shi/Win-CodexBar` 的 `metrics-v0.56.8-r4` Release](https://github.com/le-shi/Win-CodexBar/releases/tag/metrics-v0.56.8-r4)。可下载独立的 `codexbar-cli.exe`，也可下载包含该文件的 `CodexBarCLI-metrics-v0.56.8-r4-windows-x64.zip`；对应 `.sha256` 文件用于校验。`Finesssee/Win-CodexBar` 的标准 v0.56.8 CLI 不包含 `--metrics` 开关。
+Prometheus exporter CLI 单独发布在 [`le-shi/Win-CodexBar` 的 `metrics-v0.56.8-r5` Release](https://github.com/le-shi/Win-CodexBar/releases/tag/metrics-v0.56.8-r5)。可下载独立的 `codexbar-cli.exe`，也可下载包含该文件的 `CodexBarCLI-metrics-v0.56.8-r5-windows-x64.zip`；对应 `.sha256` 文件用于校验。`Finesssee/Win-CodexBar` 的标准 v0.56.8 CLI 不包含 `--metrics` 开关。
 
 安装包会包含桌面应用、Microsoft Evergreen WebView2 引导程序、应用图标、开始菜单快捷方式、卸载信息，以及干净 Windows 机器可能需要的 Visual C++ 运行库引导。便携版 exe 是没有安装器集成的同一个桌面应用；release 构建会静态链接 WebView2 loader，所以便携版用户只需要机器上已安装 Microsoft Edge WebView2 Runtime。
 
@@ -182,7 +182,7 @@ codexbar cost  -p codex           # 本地成本（JSONL 日志）
 
 ### Prometheus 监控
 
-请使用 [`metrics-v0.56.8-r4` 专用 Release](https://github.com/le-shi/Win-CodexBar/releases/tag/metrics-v0.56.8-r4) 中的 `codexbar-cli.exe`（或对应 zip）；`Finesssee/Win-CodexBar` 的标准 v0.56.8 CLI 不包含 `--metrics` 开关。部署前可用 `serve --help` 确认所选二进制包含该参数。
+请使用 [`metrics-v0.56.8-r5` 专用 Release](https://github.com/le-shi/Win-CodexBar/releases/tag/metrics-v0.56.8-r5) 中的 `codexbar-cli.exe`（或对应 zip）；`Finesssee/Win-CodexBar` 的标准 v0.56.8 CLI 不包含 `--metrics` 开关。部署前可用 `serve --help` 确认所选二进制包含该参数。
 
 `serve` 的 Prometheus 端点默认关闭。下面的示例只监听本机真实局域网地址；请按实际网卡地址替换 `192.168.13.111`，并使用随机长 Token：
 

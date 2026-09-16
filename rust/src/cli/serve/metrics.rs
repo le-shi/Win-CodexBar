@@ -88,6 +88,10 @@ const METRIC_DEFINITIONS: &[(&str, &str)] = &[
         "codexbar_reset_credits_available",
         "Available Codex rate-limit reset credits; -1 means unavailable or unsupported.",
     ),
+    (
+        "codexbar_reset_credits_next_expiry_timestamp_seconds",
+        "Unix timestamp when the next available Codex rate-limit reset credit expires.",
+    ),
     ("codexbar_credits_remaining", "Remaining provider credits."),
     (
         "codexbar_cost_today_usd",
@@ -276,6 +280,21 @@ fn render_at(snapshot: &SnapshotPayload, now: DateTime<Utc>) -> String {
                     .map(i64::from)
                     .unwrap_or(-1),
             );
+            if provider
+                .reset_credits_available
+                .is_some_and(|available| available > 0)
+                && let Some(expires_at) = provider
+                    .windows
+                    .iter()
+                    .find(|window| window.kind == "reset-credits")
+                    .and_then(|window| window.reset_at)
+            {
+                writer.sample(
+                    "codexbar_reset_credits_next_expiry_timestamp_seconds",
+                    &provider_labels,
+                    expires_at.timestamp(),
+                );
+            }
         }
         if let Some(credits) = &provider.credits {
             writer.sample_f64(
@@ -619,7 +638,18 @@ mod tests {
                 account_email: Some("owner@example.test".to_string()),
                 plan: Some("Sensitive plan".to_string()),
             }),
-            windows: vec![window("session", 25.0, Some(at(3)))],
+            windows: vec![
+                window("session", 25.0, Some(at(3))),
+                WindowPayload {
+                    kind: "reset-credits".to_string(),
+                    label: "Reset credits".to_string(),
+                    used_percent: 0.0,
+                    remaining_percent: 100.0,
+                    reset_at: Some(at(5)),
+                    usage_known: false,
+                    idle: false,
+                },
+            ],
             reset_credits_available: Some(3),
             credits: Some(CreditsPayload {
                 remaining: 42.5,
@@ -737,6 +767,9 @@ mod tests {
             body.contains("codexbar_credits_remaining{provider=\"codex\",unit=\"credits\"} 42.5\n")
         );
         assert!(body.contains("codexbar_reset_credits_available{provider=\"codex\"} 3\n"));
+        assert!(body.contains(
+            "codexbar_reset_credits_next_expiry_timestamp_seconds{provider=\"codex\"} 1789362000\n"
+        ));
         assert!(body.contains("codexbar_cost_last_30_days_usd{provider=\"codex\"} 12.5\n"));
         assert!(
             body.contains("codexbar_account_active{account=\"account-1\",provider=\"codex\"} 1\n")
@@ -820,10 +853,26 @@ mod tests {
         provider.reset_credits_available = Some(0);
         let exhausted = render(&snapshot(vec![provider.clone()]));
         assert!(exhausted.contains("codexbar_reset_credits_available{provider=\"codex\"} 0\n"));
+        assert_eq!(
+            samples(
+                &exhausted,
+                "codexbar_reset_credits_next_expiry_timestamp_seconds"
+            )
+            .count(),
+            0
+        );
 
         provider.reset_credits_available = None;
         let unavailable = render(&snapshot(vec![provider]));
         assert!(unavailable.contains("codexbar_reset_credits_available{provider=\"codex\"} -1\n"));
+        assert_eq!(
+            samples(
+                &unavailable,
+                "codexbar_reset_credits_next_expiry_timestamp_seconds"
+            )
+            .count(),
+            0
+        );
     }
 
     #[test]

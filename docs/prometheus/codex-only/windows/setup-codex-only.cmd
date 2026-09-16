@@ -5,7 +5,7 @@ set "APP_DIR=%~dp0"
 set "EXE=%APP_DIR%codexbar-cli.exe"
 set "TOKEN_FILE=%APP_DIR%metrics.token"
 set "PROVIDERS_FILE=%TEMP%\codexbar-providers-%RANDOM%-%RANDOM%.txt"
-set "DOWNLOAD_BASE=https://github.com/le-shi/Win-CodexBar/releases/download/metrics-v0.56.8-r4"
+set "DOWNLOAD_BASE=https://github.com/le-shi/Win-CodexBar/releases/download/metrics-v0.56.8-r5"
 set "DOWNLOAD_URL=%DOWNLOAD_BASE%/codexbar-cli.exe"
 set "CHECKSUM_URL=%DOWNLOAD_BASE%/codexbar-cli.exe.sha256"
 set "TEMP_EXE=%APP_DIR%codexbar-cli.download-%RANDOM%-%RANDOM%.exe"
@@ -21,7 +21,7 @@ echo Checking codexbar-cli.exe release checksum...
 powershell.exe -NoLogo -NoProfile -NonInteractive -Command ^
   "$ErrorActionPreference='Stop'; function Get-Sha256([string]$path) { $stream=[IO.File]::OpenRead($path); $sha=[Security.Cryptography.SHA256]::Create(); try { -join ($sha.ComputeHash($stream) | ForEach-Object { $_.ToString('x2') }) } finally { $sha.Dispose(); $stream.Dispose() } }; Invoke-WebRequest -UseBasicParsing -Uri $env:CODEXBAR_CHECKSUM_URL -OutFile $env:CODEXBAR_TEMP_SHA; $lines=@([IO.File]::ReadAllLines($env:CODEXBAR_TEMP_SHA) | Where-Object { $_.Length -gt 0 }); if($lines.Count -ne 1 -or $lines[0] -notmatch '^([0-9A-Fa-f]{64})  codexbar-cli[.]exe$') { throw 'Invalid codexbar-cli.exe.sha256 release asset' }; $expected=$Matches[1]; $installed=(Test-Path -LiteralPath $env:CODEXBAR_EXE) -and ((Get-Sha256 $env:CODEXBAR_EXE) -ieq $expected); if(-not $installed) { Invoke-WebRequest -UseBasicParsing -Uri $env:CODEXBAR_DOWNLOAD_URL -OutFile $env:CODEXBAR_TEMP_EXE; $actual=Get-Sha256 $env:CODEXBAR_TEMP_EXE; if($actual -ine $expected) { throw ('SHA-256 mismatch: ' + $actual) }; $help=& $env:CODEXBAR_TEMP_EXE serve --help 2>&1; if($LASTEXITCODE -ne 0 -or -not ($help -match '--metrics')) { throw 'Downloaded executable does not support serve --metrics' }; Move-Item -LiteralPath $env:CODEXBAR_TEMP_EXE -Destination $env:CODEXBAR_EXE -Force }; Remove-Item -LiteralPath $env:CODEXBAR_TEMP_SHA -Force"
 if errorlevel 1 (
-  set "FAIL_REASON=Could not download or verify the metrics-v0.56.8-r4 codexbar-cli.exe."
+  set "FAIL_REASON=Could not download or verify the metrics-v0.56.8-r5 codexbar-cli.exe."
   goto :fail
 )
 

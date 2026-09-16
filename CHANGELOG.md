@@ -1,5 +1,13 @@
 # Changelog
 
+## [Windows] metrics-v0.56.8-r5 - 2026-09-16
+
+### Added
+- Prometheus exposes `codexbar_reset_credits_next_expiry_timestamp_seconds{provider="codex"}` for the earliest expiry among currently available reset credits.
+- The Codex Grafana dashboard shows the available reset-credit count and nearest expiry together.
+
+---
+
 ## [Windows] metrics-v0.56.8-r4 - 2026-09-15
 
 ### Changed

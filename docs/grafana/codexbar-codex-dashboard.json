@@ -618,7 +618,7 @@
         "type": "prometheus",
         "uid": "${datasource}"
       },
-      "description": "当前可用的 Codex 限流重置卡数量。-1 表示 PAT 模式、接口不支持或查询失败；该接口结果缓存 10 分钟。",
+      "description": "当前可用的 Codex 限流重置卡数量，以及所有可用卡中最早的到期时间。张数 -1 表示 PAT 模式、接口不支持或查询失败；没有可用卡或接口未提供有效期时显示“未提供”。该接口结果缓存 10 分钟。",
       "fieldConfig": {
         "defaults": {
           "color": {
@@ -655,7 +655,41 @@
             ]
           }
         },
-        "overrides": []
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byFrameRefID",
+              "options": "B"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "dateTimeAsIso"
+              },
+              {
+                "id": "color",
+                "value": {
+                  "fixedColor": "blue",
+                  "mode": "fixed"
+                }
+              },
+              {
+                "id": "mappings",
+                "value": [
+                  {
+                    "options": {
+                      "0": {
+                        "color": "orange",
+                        "text": "未提供"
+                      }
+                    },
+                    "type": "value"
+                  }
+                ]
+              }
+            ]
+          }
+        ]
       },
       "gridPos": {
         "h": 7,
@@ -684,12 +718,20 @@
           "editorMode": "code",
           "expr": "codexbar_reset_credits_available{monitor=\"codexbar-codex\",job=~\"$job\",instance=~\"$instance\",provider=\"codex\"}",
           "instant": true,
-          "legendFormat": "{{instance}}",
+          "legendFormat": "{{instance}} / 可用张数",
           "range": false,
           "refId": "A"
+        },
+        {
+          "editorMode": "code",
+          "expr": "(codexbar_reset_credits_next_expiry_timestamp_seconds{monitor=\"codexbar-codex\",job=~\"$job\",instance=~\"$instance\",provider=\"codex\"} * 1000) or on(job, instance, provider) (codexbar_reset_credits_available{monitor=\"codexbar-codex\",job=~\"$job\",instance=~\"$instance\",provider=\"codex\"} * 0)",
+          "instant": true,
+          "legendFormat": "{{instance}} / 最近到期",
+          "range": false,
+          "refId": "B"
         }
       ],
-      "title": "Codex 可用重置卡",
+      "title": "Codex 重置卡",
       "type": "stat"
     },
     {
@@ -1295,7 +1337,7 @@
   "timezone": "browser",
   "title": "Win-CodexBar / Codex 监控",
   "uid": "win-codexbar-codex",
-  "version": 7,
+  "version": 8,
   "weekStart": "",
   "description": "Win-CodexBar Codex 配额、重置卡、数据时效性、采集健康、重置时间与本地估算成本监控；目标通过 monitor=\"codexbar-codex\" 标签识别。"
 }

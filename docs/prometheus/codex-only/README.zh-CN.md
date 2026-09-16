@@ -88,9 +88,12 @@ up{monitor="codexbar-codex"}
 codexbar_provider_up{monitor="codexbar-codex",provider="codex"}
 codexbar_quota_remaining_percent{monitor="codexbar-codex",provider="codex"}
 codexbar_reset_credits_available{monitor="codexbar-codex",provider="codex"}
+codexbar_reset_credits_next_expiry_timestamp_seconds{monitor="codexbar-codex",provider="codex"}
 ```
 
 `codexbar_reset_credits_available` 的值为非负整数时，表示当前可用重置卡张数，其中 `0` 表示已经用完；值为 `-1` 时，表示 PAT 模式、接口不支持或本次查询失败，不能当作真实张数参与 `min()`、`avg()` 等聚合。需要统计张数时先用 `codexbar_reset_credits_available >= 0` 过滤未知值。
+
+`codexbar_reset_credits_next_expiry_timestamp_seconds` 表示当前可用重置卡中最早到期的一张，值为 Unix 秒时间戳。没有可用卡、接口未提供有效期或重置卡数据无法获取时不输出该指标；它不会暴露卡 ID，也不会为每张卡创建标签。
 
 Win-CodexBar 会把 `/wham/rate-limit-reset-credits` 的查询结果缓存 10 分钟，成功结果和“无法获取”状态都会缓存。在同一账号和认证范围内，常规刷新即使比 Prometheus 抓取更频繁，重置卡接口通常也只会每 10 分钟重新查询一次。检测到可疑的周额度重置时会绕过常规缓存取得独立库存观察，用于避免把旧缓存当成消费重置卡的证据。
 
@@ -105,6 +108,6 @@ Win-CodexBar 会把 `/wham/rate-limit-reset-credits` 的查询结果缓存 10 �
 3. 在 `Prometheus` 变量中选择数据源。
 4. 面板界面已中文化；“采集任务”和“节点”默认选择“全部”，“额度窗口”默认选择 `weekly`，也可以切换为其他窗口或“全部”。示例 job 名为 `codex-bar`，也可以使用其他名称。
 
-Dashboard 固定使用 `provider="codex"`，不会展示其他 provider。当前值和历史图统一展示剩余额度，“Codex 可用重置卡”面板显示实际张数，并把 `-1` 映射为“无法获取”。它不包含多账号面板，因为 Codex 当前不生成对应指标。底部“辅助信息”默认折叠，展开后可同时查看 Codex 本地估算成本、导出器元数据和 Codex 采集详情；成本来自本地会话日志估算，不是订阅账单。
+Dashboard 固定使用 `provider="codex"`，不会展示其他 provider。当前值和历史图统一展示剩余额度，“Codex 重置卡”面板同时显示可用张数和最近到期时间，并把张数 `-1` 映射为“无法获取”。它不包含多账号面板，因为 Codex 当前不生成对应指标。底部“辅助信息”默认折叠，展开后可同时查看 Codex 本地估算成本、导出器元数据和 Codex 采集详情；成本来自本地会话日志估算，不是订阅账单。
 
 初始化与启动脚本会确保 `/metrics` 启动时只有 Codex provider；Prometheus 的抓取过滤、告警规则和 Dashboard 则持续只使用 Codex 数据。相同 HTTP 服务上的 `/usage`、`/cost`、`/dashboard/v1/snapshot` 等数据路由受同一个 Bearer Token 保护；`/health` 只公开版本和状态。防火墙仍应只允许 Prometheus 服务器访问。
