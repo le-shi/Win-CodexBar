@@ -24,10 +24,6 @@ const USAGE_PATH: &str = "/wham/usage";
 const RESET_CREDITS_PATH: &str = "/wham/rate-limit-reset-credits";
 const CREDENTIAL_CACHE_TTL: Duration = Duration::from_secs(5);
 const RESET_CREDITS_CACHE_TTL: Duration = Duration::from_secs(10 * 60);
-/// How long an external OAuth token set is trusted after the CLI last
-/// refreshed it. Matches the CLI's own `needs_refresh` window (8 days) so a
-/// token the CLI considers fresh is also trusted here (upstream 0.50.1 #2944).
-const EXTERNAL_OAUTH_STALENESS_WINDOW: chrono::TimeDelta = chrono::Duration::days(8);
 const EXTERNAL_OAUTH_REFRESH_WINDOW: chrono::TimeDelta = chrono::Duration::minutes(5);
 
 static CREDENTIAL_CACHE: OnceLock<Mutex<Option<CachedCodexCredentials>>> = OnceLock::new();
@@ -570,8 +566,9 @@ impl CodexApi {
             .map(|s| s.to_string());
 
         // Upstream 0.50.1 #2944: an OAuth token set with a refresh_token is an
-        // external (CLI-owned) OAuth source. The `last_refresh` timestamp
-        // (written by the CLI) lets us detect staleness.
+        // external (CLI-owned) OAuth source. A present `last_refresh` proves
+        // the file follows the CLI credential format, but its age alone does
+        // not determine whether the access token is usable.
         let has_refresh_token = tokens
             .get("refresh_token")
             .and_then(|v| v.as_str())
@@ -593,11 +590,11 @@ impl CodexApi {
     }
 
     /// Upstream 0.50.1 #2944: when `codex_external_oauth_sources_allowed` is
-    /// OFF (the default), stale external OAuth credential files fail closed
-    /// instead of being used silently. An external OAuth source is an
-    /// auth.json `tokens` object with a `refresh_token` (CLI-owned OAuth,
-    /// not an API key). "Stale" means the CLI has not refreshed the token
-    /// recently (no `last_refresh`, or older than the staleness window).
+    /// OFF (the default), external OAuth credential files without CLI refresh
+    /// metadata fail closed instead of being used silently. An external OAuth
+    /// source is an auth.json `tokens` object with a `refresh_token` (CLI-owned
+    /// OAuth, not an API key). The age of `last_refresh` is not an expiry
+    /// signal; native JWT expiry remains authoritative when available.
     fn enforce_external_oauth_gate(credentials: &CodexCredentials) -> Result<(), ProviderError> {
         Self::enforce_external_oauth_gate_at(
             credentials,
@@ -614,13 +611,8 @@ impl CodexApi {
         if !credentials.is_external_oauth {
             return Ok(());
         }
-        if !external_sources_allowed {
-            let is_stale = credentials
-                .last_refresh
-                .is_none_or(|last| now - last > EXTERNAL_OAUTH_STALENESS_WINDOW);
-            if is_stale {
-                return Err(ProviderError::AuthRequired);
-            }
+        if !external_sources_allowed && credentials.last_refresh.is_none() {
+            return Err(ProviderError::AuthRequired);
         }
         if let Some(expires_at) = credentials.access_token_expires_at
             && expires_at - now <= EXTERNAL_OAUTH_REFRESH_WINDOW
@@ -1166,9 +1158,9 @@ struct CodexCredentials {
     /// Native access-token JWT expiry. When available, this is authoritative
     /// for refresh scheduling; the CLI still owns the refresh lifecycle.
     access_token_expires_at: Option<DateTime<Utc>>,
-    /// `last_refresh` timestamp from auth.json, when present. Used to detect
-    /// stale external OAuth tokens that should fail closed when the opt-in
-    /// setting is OFF.
+    /// `last_refresh` timestamp from auth.json, when present. Its presence is
+    /// used to recognize CLI-managed OAuth credentials; its age is not token
+    /// expiry evidence.
     last_refresh: Option<DateTime<Utc>>,
 }
 
@@ -2496,7 +2488,7 @@ mod tests {
     }
 
     #[test]
-    fn external_oauth_gate_fails_closed_for_stale_tokens() {
+    fn external_oauth_gate_fails_closed_without_last_refresh() {
         let creds = CodexCredentials {
             access_token: "access".to_string(),
             account_id: None,
@@ -2510,7 +2502,7 @@ mod tests {
     }
 
     #[test]
-    fn external_oauth_gate_fails_closed_for_old_last_refresh() {
+    fn external_oauth_gate_accepts_old_last_refresh() {
         let old = Utc::now() - chrono::Duration::days(10);
         let creds = CodexCredentials {
             access_token: "access".to_string(),
@@ -2519,9 +2511,7 @@ mod tests {
             access_token_expires_at: None,
             last_refresh: Some(old),
         };
-        let err = CodexApi::enforce_external_oauth_gate(&creds)
-            .expect_err("old external OAuth must fail closed");
-        assert!(matches!(err, ProviderError::AuthRequired));
+        assert!(CodexApi::enforce_external_oauth_gate(&creds).is_ok());
     }
 
     #[test]
@@ -2538,7 +2528,7 @@ mod tests {
     }
 
     #[test]
-    fn external_oauth_staleness_gate_precedes_future_jwt_expiry() {
+    fn old_last_refresh_does_not_override_future_jwt_expiry() {
         let now = Utc::now();
         let future = now + chrono::Duration::hours(2);
         let payload = base64::engine::general_purpose::URL_SAFE_NO_PAD
@@ -2549,9 +2539,7 @@ mod tests {
         );
         let creds = CodexApi::parse_credentials_json(&json).expect("credentials");
         assert!(creds.access_token_expires_at.is_some());
-        let err = CodexApi::enforce_external_oauth_gate_at(&creds, false, now)
-            .expect_err("stale external OAuth must not be revived by JWT expiry");
-        assert!(matches!(err, ProviderError::AuthRequired));
+        assert!(CodexApi::enforce_external_oauth_gate_at(&creds, false, now).is_ok());
         assert!(CodexApi::enforce_external_oauth_gate_at(&creds, true, now).is_ok());
     }
 
@@ -2572,7 +2560,7 @@ mod tests {
     }
 
     #[test]
-    fn malformed_or_opaque_jwt_falls_back_to_last_refresh() {
+    fn opaque_jwt_accepts_cli_refresh_metadata() {
         let fresh = Utc::now().to_rfc3339();
         let json = format!(
             r#"{{"tokens":{{"access_token":"opaque-token","refresh_token":"refresh"}},"last_refresh":"{fresh}"}}"#
