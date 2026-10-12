@@ -784,74 +784,6 @@
         "type": "prometheus",
         "uid": "${datasource}"
       },
-      "description": "各额度窗口距离下一次重置的剩余时间；导出器不输出缺少重置时间的窗口。",
-      "fieldConfig": {
-        "defaults": {
-          "color": {
-            "mode": "thresholds"
-          },
-          "decimals": 0,
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "red",
-                "value": null
-              },
-              {
-                "color": "yellow",
-                "value": 3600
-              },
-              {
-                "color": "green",
-                "value": 21600
-              }
-            ]
-          },
-          "unit": "s"
-        },
-        "overrides": []
-      },
-      "gridPos": {
-        "h": 7,
-        "w": 5,
-        "x": 8,
-        "y": 12
-      },
-      "id": 9,
-      "options": {
-        "colorMode": "value",
-        "graphMode": "none",
-        "justifyMode": "auto",
-        "orientation": "horizontal",
-        "reduceOptions": {
-          "calcs": [
-            "lastNotNull"
-          ],
-          "fields": "",
-          "values": false
-        },
-        "textMode": "auto",
-        "wideLayout": true
-      },
-      "targets": [
-        {
-          "editorMode": "code",
-          "expr": "clamp_min(codexbar_quota_reset_timestamp_seconds{monitor=\"codexbar-codex\",job=~\"$job\",instance=~\"$instance\",provider=\"codex\",window=~\"$window\"} - time(), 0)",
-          "instant": true,
-          "legendFormat": "{{instance}} / {{window}}",
-          "range": false,
-          "refId": "A"
-        }
-      ],
-      "title": "距离额度重置",
-      "type": "stat"
-    },
-    {
-      "datasource": {
-        "type": "prometheus",
-        "uid": "${datasource}"
-      },
       "description": "最近一次 Codex 用量采集是否成功。",
       "fieldConfig": {
         "defaults": {
@@ -898,8 +830,8 @@
       },
       "gridPos": {
         "h": 7,
-        "w": 5,
-        "x": 13,
+        "w": 8,
+        "x": 8,
         "y": 12
       },
       "id": 10,
@@ -957,7 +889,7 @@
         "type": "prometheus",
         "uid": "${datasource}"
       },
-      "description": "距离各 Codex 节点的用量数据最近一次更新已过去的秒数。",
+      "description": "按所选额度窗口展示距离重置的剩余天数；各时间点按当时的重置时间计算。",
       "fieldConfig": {
         "defaults": {
           "color": {
@@ -966,7 +898,7 @@
           "custom": {
             "axisCenteredZero": false,
             "axisColorMode": "text",
-            "axisLabel": "",
+            "axisLabel": "剩余天数",
             "axisPlacement": "auto",
             "barAlignment": 0,
             "drawStyle": "line",
@@ -1003,14 +935,15 @@
               }
             ]
           },
-          "unit": "s"
+          "unit": "d",
+          "decimals": 1
         },
         "overrides": []
       },
       "gridPos": {
         "h": 7,
-        "w": 6,
-        "x": 18,
+        "w": 8,
+        "x": 16,
         "y": 12
       },
       "id": 11,
@@ -1031,13 +964,13 @@
       "targets": [
         {
           "editorMode": "code",
-          "expr": "codexbar_provider_data_age_seconds{monitor=\"codexbar-codex\",job=~\"$job\",instance=~\"$instance\",provider=\"codex\"}",
-          "legendFormat": "{{instance}} / {{provider}}",
+          "expr": "clamp_min(codexbar_quota_reset_timestamp_seconds{monitor=\"codexbar-codex\",job=~\"$job\",instance=~\"$instance\",provider=\"codex\",window=~\"$window\"} - time(), 0) / 86400",
+          "legendFormat": "{{instance}} / {{window}}",
           "range": true,
           "refId": "A"
         }
       ],
-      "title": "Codex 数据距今时间",
+      "title": "距离额度重置趋势",
       "type": "timeseries"
     },
     {

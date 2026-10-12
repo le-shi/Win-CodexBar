@@ -110,4 +110,6 @@ Win-CodexBar 会把 `/wham/rate-limit-reset-credits` 的查询结果缓存 10 �
 
 Dashboard 固定使用 `provider="codex"`，不会展示其他 provider。当前值和历史图统一展示剩余额度，“Codex 重置卡”面板按节点每行显示可用张数和最近到期时间，三列自动填满面板宽度，并把张数 `-1` 映射为“无法获取”。它不包含多账号面板，因为 Codex 当前不生成对应指标。底部“辅助信息”默认折叠，展开后可同时查看 Codex 本地估算成本、导出器元数据和 Codex 采集详情；成本来自本地会话日志估算，不是订阅账单。
 
+“距离额度重置趋势”按所选额度窗口显示剩余重置天数的历史变化，计算方式为 `max(重置时间 - 采样时间, 0) / 86400`；原“Codex 数据距今时间”曲线已移除。
+
 初始化与启动脚本会确保 `/metrics` 启动时只有 Codex provider；Prometheus 的抓取过滤、告警规则和 Dashboard 则持续只使用 Codex 数据。相同 HTTP 服务上的 `/usage`、`/cost`、`/dashboard/v1/snapshot` 等数据路由受同一个 Bearer Token 保护；`/health` 只公开版本和状态。防火墙仍应只允许 Prometheus 服务器访问。
