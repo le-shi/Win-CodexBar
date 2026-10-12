@@ -259,7 +259,7 @@
       "title": "最早到期重置卡",
       "type": "stat",
       "gridPos": {
-        "h": 5,
+        "h": 9,
         "w": 8,
         "x": 0,
         "y": 5
@@ -333,13 +333,13 @@
     },
     {
       "id": 6,
-      "title": "额度重置时间",
-      "type": "stat",
+      "title": "距离额度重置趋势（天）",
+      "type": "timeseries",
       "gridPos": {
-        "h": 4,
-        "w": 8,
         "x": 0,
-        "y": 10
+        "y": 14,
+        "w": 24,
+        "h": 7
       },
       "datasource": {
         "type": "prometheus",
@@ -352,22 +352,45 @@
             "uid": "${datasource}"
           },
           "editorMode": "code",
-          "expr": "codexbar_quota_${window:raw}_reset_timestamp_seconds{job=~\"${job:regex}\",instance=~\"${instance:regex}\",provider=\"codex\"} * 1000",
+          "expr": "clamp_min(codexbar_quota_${window:raw}_reset_timestamp_seconds{job=~\"${job:regex}\",instance=~\"${instance:regex}\",provider=\"codex\"} - time(), 0) / 86400",
           "legendFormat": "{{instance}}",
-          "refId": "A"
+          "refId": "A",
+          "range": true,
+          "instant": false
         }
       ],
       "fieldConfig": {
         "defaults": {
-          "unit": "dateTimeAsLocal",
+          "unit": "d",
+          "decimals": 1,
           "color": {
             "mode": "palette-classic"
+          },
+          "custom": {
+            "axisLabel": "剩余天数",
+            "drawStyle": "line",
+            "lineWidth": 2,
+            "fillOpacity": 10,
+            "showPoints": "never"
           }
         },
         "overrides": []
       },
-      "options": {},
-      "description": ""
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "bottom",
+          "showLegend": true,
+          "calcs": [
+            "lastNotNull"
+          ]
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "description": "按所选额度窗口显示剩余重置天数随时间递减的趋势；到期前每个节点独立成线。"
     },
     {
       "id": 7,
@@ -376,7 +399,7 @@
       "collapsed": true,
       "gridPos": {
         "x": 0,
-        "y": 14,
+        "y": 21,
         "w": 24,
         "h": 1
       },
@@ -387,9 +410,9 @@
           "type": "stat",
           "gridPos": {
             "h": 5,
-            "w": 8,
+            "w": 12,
             "x": 0,
-            "y": 15
+            "y": 22
           },
           "datasource": {
             "type": "prometheus",
@@ -420,52 +443,14 @@
           "description": ""
         },
         {
-          "id": 9,
-          "title": "采集数据年龄",
-          "type": "stat",
-          "gridPos": {
-            "h": 5,
-            "w": 8,
-            "x": 8,
-            "y": 15
-          },
-          "datasource": {
-            "type": "prometheus",
-            "uid": "${datasource}"
-          },
-          "targets": [
-            {
-              "datasource": {
-                "type": "prometheus",
-                "uid": "${datasource}"
-              },
-              "editorMode": "code",
-              "expr": "codexbar_provider_data_age_seconds{job=~\"${job:regex}\",instance=~\"${instance:regex}\",provider=\"codex\"}",
-              "legendFormat": "{{instance}}",
-              "refId": "A"
-            }
-          ],
-          "fieldConfig": {
-            "defaults": {
-              "unit": "s",
-              "color": {
-                "mode": "palette-classic"
-              }
-            },
-            "overrides": []
-          },
-          "options": {},
-          "description": ""
-        },
-        {
           "id": 10,
           "title": "导出器状态",
           "type": "stat",
           "gridPos": {
             "h": 5,
-            "w": 8,
-            "x": 16,
-            "y": 15
+            "w": 12,
+            "x": 12,
+            "y": 22
           },
           "datasource": {
             "type": "prometheus",
