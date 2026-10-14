@@ -1257,11 +1257,9 @@
         "regex": "",
         "skipUrlSync": false,
         "sort": 1,
-        "type": "query",
-        "allValue": ".*"
+        "type": "query"
       },
       {
-        "allValue": ".*",
         "current": {
           "selected": true,
           "text": "全部",
